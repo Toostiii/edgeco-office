@@ -15,7 +15,7 @@ const NAV: NavItem[] = [
   { label: "Kunden", href: "/customers", icon: "👥", ready: true },
   { label: "Anlagen (AfA)", href: "/assets", icon: "🏭" },
   { label: "Auswertungen / EÜR", href: "/reports", icon: "📈" },
-  { label: "Einstellungen", href: "/settings", icon: "⚙️" },
+  { label: "Einstellungen", href: "/settings", icon: "⚙️", ready: true },
 ];
 
 export default function AppShell({
