@@ -14,16 +14,13 @@ import {
   type Booking,
 } from "@/lib/calc/eur";
 import { formatEuro } from "@/lib/money";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/user";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const year = new Date().getFullYear();
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
   if (!user) redirect("/login");
 
   const [rows, assetRows] = await Promise.all([

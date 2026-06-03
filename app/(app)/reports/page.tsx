@@ -15,7 +15,7 @@ import {
   type Booking,
 } from "@/lib/calc/eur";
 import { formatEuro } from "@/lib/money";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/user";
 import { getLockedYears } from "@/lib/fiscal";
 import YearLockControl from "@/components/YearLockControl";
 
@@ -63,10 +63,7 @@ export default async function ReportsPage({
   const selectedYear = Number(query.year);
   const year = Number.isInteger(selectedYear) ? selectedYear : currentYear;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
   if (!user) redirect("/login");
 
   const [txRows, assetRows, lockedYears] = await Promise.all([

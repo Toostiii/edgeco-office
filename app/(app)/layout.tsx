@@ -3,7 +3,7 @@
  * Server Component: prüft die Session und leitet sonst zum Login.
  */
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/user";
 import AppShell from "@/components/AppShell";
 
 export default async function AppLayout({
@@ -11,10 +11,7 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
 
   if (!user) {
     redirect("/login");

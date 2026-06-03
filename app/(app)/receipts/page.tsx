@@ -21,18 +21,18 @@ export default async function ReceiptsPage() {
     .orderBy(desc(receipts.uploadedAt))
     .limit(100);
 
-  const items = await Promise.all(
-    rows.map(async (r) => {
-      const { data } = await supabase.storage
-        .from("belege")
-        .createSignedUrl(r.filePath, 3600);
-      return {
-        ...r,
-        url: data?.signedUrl ?? null,
-        isPdf: r.filePath.toLowerCase().endsWith(".pdf"),
-      };
-    }),
-  );
+  // Alle Belege in EINER Anfrage signieren (statt pro Beleg eine).
+  const paths = rows.map((r) => r.filePath);
+  const { data: signed } =
+    paths.length > 0
+      ? await supabase.storage.from("belege").createSignedUrls(paths, 3600)
+      : { data: [] };
+
+  const items = rows.map((r, i) => ({
+    ...r,
+    url: signed?.[i]?.signedUrl ?? null,
+    isPdf: r.filePath.toLowerCase().endsWith(".pdf"),
+  }));
 
   return (
     <div className="mx-auto max-w-5xl">

@@ -6,7 +6,7 @@ import { desc, eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { transactions, categories, receipts } from "@/db/schema";
 import { formatEuro } from "@/lib/money";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/user";
 import TransactionForm, {
   type CategoryOption,
   type ReceiptOption,
@@ -77,10 +77,7 @@ export default async function TransactionsPage({
   // Bearbeitungsmodus: die zu bearbeitende Buchung laden.
   let editTx: EditTx | undefined;
   if (edit) {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCachedUser();
     if (user) {
       const found = await db
         .select()

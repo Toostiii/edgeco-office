@@ -15,10 +15,11 @@ if (!connectionString) {
 }
 
 // prepare: false ist für den Supabase Transaction-Pooler (Port 6543) nötig.
-// max/idle_timeout halten die Verbindungen auf Vercel (serverless) schlank.
+// max: 3 erlaubt parallele Abfragen (Promise.all) pro Funktionsinstanz,
+// idle_timeout schließt ungenutzte Verbindungen zügig (serverless-freundlich).
 const client = postgres(connectionString, {
   prepare: false,
-  max: 1,
+  max: 3,
   idle_timeout: 20,
 });
 
