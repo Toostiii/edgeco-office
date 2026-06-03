@@ -26,18 +26,19 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const rows = await db
-    .select()
-    .from(transactions)
-    .where(eq(transactions.ownerId, user.id))
-    .orderBy(desc(transactions.date))
-    .limit(200);
-
-  const assetRows = await db
-    .select()
-    .from(assets)
-    .where(eq(assets.ownerId, user.id))
-    .limit(500);
+  const [rows, assetRows] = await Promise.all([
+    db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.ownerId, user.id))
+      .orderBy(desc(transactions.date))
+      .limit(200),
+    db
+      .select()
+      .from(assets)
+      .where(eq(assets.ownerId, user.id))
+      .limit(500),
+  ]);
 
   const bookings: Booking[] = rows.map((r) => ({
     date: r.date,

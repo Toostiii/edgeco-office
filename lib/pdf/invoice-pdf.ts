@@ -43,11 +43,49 @@ function formatDate(iso: string): string {
   return `${d}.${m}.${y}`;
 }
 
+/** Bricht Text in Zeilen um, die in maxWidth passen (inkl. Hard-Break sehr langer Wörter). */
+function wrapText(
+  s: string,
+  f: PDFFont,
+  size: number,
+  maxWidth: number,
+): string[] {
+  const words = s.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let cur = "";
+  const fits = (t: string) => f.widthOfTextAtSize(t, size) <= maxWidth;
+
+  for (const w of words) {
+    const test = cur ? `${cur} ${w}` : w;
+    if (fits(test)) {
+      cur = test;
+      continue;
+    }
+    if (cur) lines.push(cur);
+    if (fits(w)) {
+      cur = w;
+    } else {
+      // Wort zu lang → zeichenweise umbrechen
+      let chunk = "";
+      for (const ch of w) {
+        if (fits(chunk + ch)) chunk += ch;
+        else {
+          if (chunk) lines.push(chunk);
+          chunk = ch;
+        }
+      }
+      cur = chunk;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [""];
+}
+
 export async function generateInvoicePdf(
   data: InvoicePdfData,
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  const page = pdf.addPage([595.28, 841.89]); // A4
+  let page = pdf.addPage([595.28, 841.89]); // A4
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const { width: W, height: H } = page.getSize();
@@ -118,35 +156,49 @@ export async function generateInvoicePdf(
   right(`Datum: ${formatDate(data.invoice.date)}`, W - M, my, 10, font);
 
   // Positionstabelle
-  let ty = Math.min(cy, my) - 30;
   const colPos = M;
   const colDesc = M + 30;
   const colQty = 360;
   const colUnit = 430;
   const colSum = W - M;
+  const descMaxWidth = colQty - 20 - colDesc; // Platz bis zur Mengenspalte
+  const BOTTOM = 110; // Platz für Hinweis/Fußzeile freihalten
 
-  page.drawRectangle({
-    x: M,
-    y: ty - 4,
-    width: W - 2 * M,
-    height: 20,
-    color: rgb(0.95, 0.95, 0.97),
-  });
-  text("Pos", colPos + 2, ty + 2, 8, bold, GREY);
-  text("Beschreibung", colDesc, ty + 2, 8, bold, GREY);
-  right("Menge", colQty + 30, ty + 2, 8, bold, GREY);
-  right("Einzel", colUnit + 40, ty + 2, 8, bold, GREY);
-  right("Gesamt", colSum, ty + 2, 8, bold, GREY);
-  ty -= 22;
+  const drawTableHeader = (atY: number): number => {
+    page.drawRectangle({
+      x: M,
+      y: atY - 4,
+      width: W - 2 * M,
+      height: 20,
+      color: rgb(0.95, 0.95, 0.97),
+    });
+    text("Pos", colPos + 2, atY + 2, 8, bold, GREY);
+    text("Beschreibung", colDesc, atY + 2, 8, bold, GREY);
+    right("Menge", colQty + 30, atY + 2, 8, bold, GREY);
+    right("Einzel", colUnit + 40, atY + 2, 8, bold, GREY);
+    right("Gesamt", colSum, atY + 2, 8, bold, GREY);
+    return atY - 22;
+  };
+
+  let ty = drawTableHeader(Math.min(cy, my) - 30);
 
   data.items.forEach((it, idx) => {
+    const descLines = wrapText(it.description, font, 10, descMaxWidth);
+    const rowHeight = Math.max(18, descLines.length * 13 + 5);
+
+    // Seitenumbruch, wenn die Zeile nicht mehr passt
+    if (ty - rowHeight < BOTTOM) {
+      page = pdf.addPage([W, H]);
+      ty = drawTableHeader(H - 60);
+    }
+
     const lineSum = it.quantity * it.unitPrice;
     text(String(idx + 1), colPos + 2, ty, 10);
-    text(it.description, colDesc, ty, 10);
+    descLines.forEach((ln, i) => text(ln, colDesc, ty - i * 13, 10));
     right(String(it.quantity), colQty + 30, ty, 10);
     right(euro(it.unitPrice), colUnit + 40, ty, 10);
     right(euro(lineSum), colSum, ty, 10);
-    ty -= 18;
+    ty -= rowHeight;
     page.drawLine({
       start: { x: M, y: ty + 6 },
       end: { x: W - M, y: ty + 6 },
@@ -155,17 +207,24 @@ export async function generateInvoicePdf(
     });
   });
 
-  // Summe
+  // Summe (ggf. auf neuer Seite)
+  if (ty - 60 < BOTTOM) {
+    page = pdf.addPage([W, H]);
+    ty = H - 80;
+  }
   ty -= 10;
   right("Gesamtbetrag", colUnit + 40, ty, 11, bold);
   right(euro(data.invoice.total), colSum, ty, 13, bold, BRAND);
 
   // §19-Hinweis
-  ty -= 40;
+  ty -= 30;
   const hint =
     data.profile.kleinunternehmerHinweis ??
     "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmer).";
-  text(hint, M, ty, 9, font, GREY);
+  for (const ln of wrapText(hint, font, 9, W - 2 * M)) {
+    text(ln, M, ty, 9, font, GREY);
+    ty -= 12;
+  }
 
   // Fußzeile
   drawFooter(page, font, data, W, M);

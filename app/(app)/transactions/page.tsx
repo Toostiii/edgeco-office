@@ -23,24 +23,40 @@ export default async function TransactionsPage({
 }) {
   const { edit } = await searchParams;
 
-  const cats = (await db
-    .select({
-      id: categories.id,
-      name: categories.name,
-      direction: categories.direction,
-    })
-    .from(categories)
-    .orderBy(categories.name)) as CategoryOption[];
-
-  const receiptRows = await db
-    .select({
-      id: receipts.id,
-      note: receipts.note,
-      uploadedAt: receipts.uploadedAt,
-    })
-    .from(receipts)
-    .orderBy(desc(receipts.uploadedAt))
-    .limit(100);
+  const [cats, receiptRows, rows] = await Promise.all([
+    db
+      .select({
+        id: categories.id,
+        name: categories.name,
+        direction: categories.direction,
+      })
+      .from(categories)
+      .orderBy(categories.name) as Promise<CategoryOption[]>,
+    db
+      .select({
+        id: receipts.id,
+        note: receipts.note,
+        uploadedAt: receipts.uploadedAt,
+      })
+      .from(receipts)
+      .orderBy(desc(receipts.uploadedAt))
+      .limit(100),
+    db
+      .select({
+        id: transactions.id,
+        date: transactions.date,
+        direction: transactions.direction,
+        amount: transactions.amount,
+        description: transactions.description,
+        paymentMethod: transactions.paymentMethod,
+        categoryName: categories.name,
+        receiptId: transactions.receiptId,
+      })
+      .from(transactions)
+      .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .orderBy(desc(transactions.date), desc(transactions.createdAt))
+      .limit(100),
+  ]);
 
   const receiptOptions: ReceiptOption[] = receiptRows.map((r) => ({
     id: r.id,
@@ -79,22 +95,6 @@ export default async function TransactionsPage({
       }
     }
   }
-
-  const rows = await db
-    .select({
-      id: transactions.id,
-      date: transactions.date,
-      direction: transactions.direction,
-      amount: transactions.amount,
-      description: transactions.description,
-      paymentMethod: transactions.paymentMethod,
-      categoryName: categories.name,
-      receiptId: transactions.receiptId,
-    })
-    .from(transactions)
-    .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .orderBy(desc(transactions.date), desc(transactions.createdAt))
-    .limit(100);
 
   return (
     <div className="mx-auto max-w-5xl">
