@@ -2,27 +2,42 @@
  * Dashboard — EÜR-Überblick des laufenden Jahres.
  * Liest Buchungen aus der DB und rechnet über lib/calc/eur.
  */
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { transactions } from "@/db/schema";
+import { assets, transactions } from "@/db/schema";
+import { depreciationForYear } from "@/lib/calc/afa";
 import {
   totalIncome,
   totalExpenses,
-  profit,
+  profitAfterDepreciation,
   type Booking,
 } from "@/lib/calc/eur";
 import { formatEuro } from "@/lib/money";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const year = new Date().getFullYear();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const rows = await db
     .select()
     .from(transactions)
+    .where(eq(transactions.ownerId, user.id))
     .orderBy(desc(transactions.date))
     .limit(200);
+
+  const assetRows = await db
+    .select()
+    .from(assets)
+    .where(eq(assets.ownerId, user.id))
+    .limit(500);
 
   const bookings: Booking[] = rows.map((r) => ({
     date: r.date,
@@ -33,7 +48,11 @@ export default async function DashboardPage() {
 
   const income = totalIncome(bookings, year);
   const expenses = totalExpenses(bookings, year);
-  const gewinn = profit(bookings, year);
+  const depreciation = assetRows.reduce(
+    (sum, asset) => sum + depreciationForYear(asset, year),
+    0,
+  );
+  const gewinn = profitAfterDepreciation(bookings, year, depreciation);
   const recent = rows.slice(0, 5);
 
   return (
@@ -41,10 +60,11 @@ export default async function DashboardPage() {
       <h1 className="mb-1 text-2xl font-bold">Dashboard</h1>
       <p className="mb-6 text-sm text-muted">Geschäftsjahr {year}</p>
 
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label={`Einnahmen ${year}`} value={formatEuro(income)} accent="income" />
         <KpiCard label={`Ausgaben ${year}`} value={formatEuro(expenses)} accent="expense" />
-        <KpiCard label="Gewinn (EÜR)" value={formatEuro(gewinn)} />
+        <KpiCard label={`AfA ${year}`} value={formatEuro(depreciation)} accent="expense" />
+        <KpiCard label="Gewinn (EÜR inkl. AfA)" value={formatEuro(gewinn)} />
       </div>
 
       <section className="rounded-xl border border-border bg-card p-5 shadow-sm">

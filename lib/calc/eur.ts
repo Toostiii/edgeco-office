@@ -51,3 +51,38 @@ export function totalExpenses(bookings: Booking[], year: number): number {
 export function profit(bookings: Booking[], year: number): number {
   return totalIncome(bookings, year) - totalExpenses(bookings, year);
 }
+
+/** Gewinn/Verlust nach EÜR inklusive AfA-Abzug (Cent). */
+export function profitAfterDepreciation(
+  bookings: Booking[],
+  year: number,
+  depreciationCents: number,
+): number {
+  return profit(bookings, year) - Math.max(0, depreciationCents);
+}
+
+export interface MonthlySummary {
+  month: number;
+  income: number;
+  expenses: number;
+  profit: number;
+}
+
+/** Monatliche EÜR-Summen ohne AfA, da AfA jahresbezogen berechnet wird. */
+export function monthlySummary(bookings: Booking[], year: number): MonthlySummary[] {
+  return Array.from({ length: 12 }, (_, index) => {
+    const month = index + 1;
+    const monthBookings = bookings.filter((booking) => {
+      if (!isActive(booking) || yearOf(booking.date) !== year) return false;
+      return Number(booking.date.slice(5, 7)) === month;
+    });
+    const income = monthBookings
+      .filter((booking) => booking.direction === "income")
+      .reduce((sum, booking) => sum + booking.amount, 0);
+    const expenses = monthBookings
+      .filter((booking) => booking.direction === "expense")
+      .reduce((sum, booking) => sum + booking.amount, 0);
+
+    return { month, income, expenses, profit: income - expenses };
+  });
+}

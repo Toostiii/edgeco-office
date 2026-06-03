@@ -47,7 +47,7 @@ export default async function InvoicesPage() {
     <div className="mx-auto max-w-6xl">
       <h1 className="mb-1 text-2xl font-bold">Rechnungen</h1>
       <p className="mb-6 text-sm text-muted">
-        Rechnungen für Auftragsfertigung — als PDF mit §19-Hinweis. „Bezahlt"
+        Rechnungen für Auftragsfertigung — als PDF mit §19-Hinweis. „Bezahlt&quot;
         legt automatisch eine Einnahme an.
       </p>
 

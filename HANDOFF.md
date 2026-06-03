@@ -1,6 +1,6 @@
 # EDGECO Office — Handoff für Codex
 
-Kurzer Kontext, um nahtlos weiterzumachen. Letzter Stand: **Phase 2 fertig**, als Nächstes **Phase 3**.
+Kurzer Kontext, um nahtlos weiterzumachen. Letzter Stand: **Phase 4 Basis umgesetzt**, als Nächstes **Shopify Admin-API / Import-Verfeinerung**.
 
 ## Was das ist
 Selbst gebaute **EÜR-Buchhaltung** für ein Kleinunternehmen (§19 UStG, keine USt) — 3D-Druck/Stunt-Teile. Web-App, von Handy + Laptop nutzbar.
@@ -35,18 +35,13 @@ Next.js 16 (App Router, TS) · React 19 · Tailwind v4 · **Drizzle ORM** + **Su
 - ✅ **Phase 0** Fundament, Auth, Dashboard
 - ✅ **Phase 1** Einnahmen/Ausgaben (`/transactions`) + Belege (`/receipts`, Upload+Galerie+Löschen) + Bearbeiten/Löschen
 - ✅ **Phase 2** Kunden (`/customers`), Einstellungen (`/settings`), Rechnungen (`/invoices`): erstellen, Positionen, fortlaufende Nr. `RE-JJJJ-NNNN`, **PDF** (`lib/pdf/invoice-pdf.ts`), Status Entwurf/Versendet/Bezahlt, **„bezahlt" legt automatisch Einnahme an**
+- ✅ **Phase 3** Anlagen (`/assets`) mit CRUD + AfA-Plan, Auswertungen (`/reports`) mit Jahresfilter, Kategorie-/Monatsübersicht, AfA-Abzug und CSV-Export. Dashboard rechnet AfA nun in den EÜR-Gewinn ein.
+- ✅ **Phase 4 Basis** Shopify-Import (`/shopify`) per CSV/JSON mit Vorschau, Deduplizierung über `[shopify:<id>]`, Kategorie „Verkauf Teile (Shopify)" und Buchung als Einnahme.
 
-## NÄCHSTES: Phase 3 — Anlagen (AfA) + Auswertungen
-1. **Anlagen `/assets`** (Nav „Anlagen (AfA)" auf ready):
-   - CRUD wie `/customers` (Form + Liste + bearbeiten/löschen). Felder: `name`, `purchaseDate`, `cost` (Cent, via parseEuroToCents), `usefulLifeYears`.
-   - **AfA-Logik existiert + ist getestet:** `lib/calc/afa.ts` (`depreciationForYear`, `depreciationSchedule`, lineare AfA monatsgenau). Pro Anlage den AfA-Plan/Jahreswert anzeigen.
-2. **Auswertungen `/reports`** (Nav „Auswertungen / EÜR" auf ready):
-   - EÜR-Jahresübersicht: Einnahmen − Ausgaben − **AfA des Jahres** (AfA aus `assets` via `depreciationForYear` aufsummieren) = Gewinn.
-   - Nutze `lib/calc/eur.ts` (`totalIncome/totalExpenses/profit`). Kategorie-Aufschlüsselung, Monats-/Jahresfilter.
-   - **Export** (CSV, später PDF) für Steuerberater.
-3. Optional: AfA auch ins **Dashboard** einrechnen (aktuell zählt Dashboard nur transactions).
-
-## Danach: Phase 4 — Shopify-Import (Bestellungen → Einnahmen).
+## NÄCHSTES: Shopify Admin-API / Import-Verfeinerung
+1. Shopify Admin-API anbinden (`SHOPIFY_SHOP_DOMAIN`, Admin Access Token) und Bestellungen automatisch abrufen.
+2. Import-Vorschau um Auswahl pro Bestellung, Refund-/Fee-Behandlung und Netto-/Brutto-Felder erweitern.
+3. Optional: Importläufe dauerhaft protokollieren statt nur per Transaktionsmarker zu deduplizieren.
 
 ## Verifikation
 `npm test` grün halten · `npm run build` muss durchlaufen · neue Seiten lokal mit `npm run dev` prüfen · PDF lässt sich isoliert testen, indem man `generateInvoicePdf()` mit Beispieldaten aufruft und die Bytes in eine Datei schreibt.

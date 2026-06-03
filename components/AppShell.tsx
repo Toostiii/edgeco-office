@@ -13,8 +13,9 @@ const NAV: NavItem[] = [
   { label: "Belege", href: "/receipts", icon: "📎", ready: true },
   { label: "Rechnungen", href: "/invoices", icon: "🧾", ready: true },
   { label: "Kunden", href: "/customers", icon: "👥", ready: true },
-  { label: "Anlagen (AfA)", href: "/assets", icon: "🏭" },
-  { label: "Auswertungen / EÜR", href: "/reports", icon: "📈" },
+  { label: "Shopify-Import", href: "/shopify", icon: "🛒", ready: true },
+  { label: "Anlagen (AfA)", href: "/assets", icon: "🏭", ready: true },
+  { label: "Auswertungen / EÜR", href: "/reports", icon: "📈", ready: true },
   { label: "Einstellungen", href: "/settings", icon: "⚙️", ready: true },
 ];
 
