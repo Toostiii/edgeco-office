@@ -8,6 +8,7 @@ import { receipts } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import ReceiptUpload from "@/components/ReceiptUpload";
 import ReceiptDeleteButton from "@/components/ReceiptDeleteButton";
+import ReceiptToBookingButton from "@/components/ReceiptToBookingButton";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,11 @@ export default async function ReceiptsPage() {
                       </p>
                     </div>
                   </a>
+                  {!r.isPdf && r.url && (
+                    <div className="px-2 pb-2">
+                      <ReceiptToBookingButton receiptId={r.id} imageUrl={r.url} />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

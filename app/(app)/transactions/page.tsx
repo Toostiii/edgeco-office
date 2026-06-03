@@ -19,9 +19,18 @@ export const dynamic = "force-dynamic";
 export default async function TransactionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ edit?: string }>;
+  searchParams: Promise<{
+    edit?: string;
+    receiptId?: string;
+    amount?: string;
+    date?: string;
+  }>;
 }) {
-  const { edit } = await searchParams;
+  const { edit, receiptId, amount, date } = await searchParams;
+  const prefill =
+    !edit && (receiptId || amount || date)
+      ? { receiptId, amount, date }
+      : undefined;
 
   const [cats, receiptRows, rows] = await Promise.all([
     db
@@ -106,10 +115,17 @@ export default async function TransactionsPage({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[380px_1fr]">
         <div>
+          {prefill && (
+            <div className="mb-3 rounded-lg border border-brand/30 bg-brand/5 p-3 text-xs text-brand">
+              Aus Beleg vorausgefüllt — bitte Betrag/Datum prüfen, Richtung &
+              Kategorie wählen, dann speichern.
+            </div>
+          )}
           <TransactionForm
             categories={cats}
             receipts={receiptOptions}
             editTx={editTx}
+            prefill={prefill}
           />
         </div>
 

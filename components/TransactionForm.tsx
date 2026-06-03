@@ -36,14 +36,22 @@ function centsToInput(cents: number): string {
   });
 }
 
+export type Prefill = {
+  amount?: string;
+  date?: string;
+  receiptId?: string;
+};
+
 export default function TransactionForm({
   categories,
   receipts = [],
   editTx,
+  prefill,
 }: {
   categories: CategoryOption[];
   receipts?: ReceiptOption[];
   editTx?: EditTx;
+  prefill?: Prefill;
 }) {
   const isEdit = !!editTx;
   const [direction, setDirection] = useState<"income" | "expense">(
@@ -107,7 +115,7 @@ export default function TransactionForm({
             name="amount"
             inputMode="decimal"
             required
-            defaultValue={editTx ? centsToInput(editTx.amount) : ""}
+            defaultValue={editTx ? centsToInput(editTx.amount) : (prefill?.amount ?? "")}
             placeholder="82,50"
             className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-brand"
           />
@@ -118,7 +126,7 @@ export default function TransactionForm({
             name="date"
             type="date"
             required
-            defaultValue={editTx?.date ?? today}
+            defaultValue={editTx?.date ?? prefill?.date ?? today}
             className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-brand"
           />
         </Field>
@@ -165,7 +173,7 @@ export default function TransactionForm({
       <Field label="Beleg (optional)" className="mt-4">
         <select
           name="receiptId"
-          defaultValue={editTx?.receiptId ?? ""}
+          defaultValue={editTx?.receiptId ?? prefill?.receiptId ?? ""}
           className="w-full rounded-lg border border-border bg-white px-3 py-2 outline-none focus:border-brand"
         >
           <option value="">— kein Beleg —</option>
