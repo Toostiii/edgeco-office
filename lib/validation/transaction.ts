@@ -14,6 +14,7 @@ export const transactionSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Ungültiges Datum."),
   categoryId: z.string().uuid().nullable().optional(),
+  receiptId: z.string().uuid().nullable().optional(),
   description: z.string().trim().max(500).optional().or(z.literal("")),
   paymentMethod: z.string().trim().max(100).optional().or(z.literal("")),
 });

@@ -1,7 +1,12 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { createTransaction, type ActionState } from "@/app/(app)/transactions/actions";
+import Link from "next/link";
+import {
+  createTransaction,
+  updateTransaction,
+  type ActionState,
+} from "@/app/(app)/transactions/actions";
 
 export type CategoryOption = {
   id: string;
@@ -9,24 +14,51 @@ export type CategoryOption = {
   direction: "income" | "expense";
 };
 
+export type ReceiptOption = { id: string; label: string };
+
+export type EditTx = {
+  id: string;
+  direction: "income" | "expense";
+  amount: number; // Cent
+  date: string;
+  categoryId: string | null;
+  receiptId: string | null;
+  description: string | null;
+  paymentMethod: string | null;
+};
+
 const today = new Date().toISOString().slice(0, 10);
+
+function centsToInput(cents: number): string {
+  return (cents / 100).toLocaleString("de-DE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
 
 export default function TransactionForm({
   categories,
+  receipts = [],
+  editTx,
 }: {
   categories: CategoryOption[];
+  receipts?: ReceiptOption[];
+  editTx?: EditTx;
 }) {
-  const [direction, setDirection] = useState<"income" | "expense">("expense");
+  const isEdit = !!editTx;
+  const [direction, setDirection] = useState<"income" | "expense">(
+    editTx?.direction ?? "expense",
+  );
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
-    createTransaction,
+    isEdit ? updateTransaction : createTransaction,
     {},
   );
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Nach erfolgreichem Speichern Felder leeren (Richtung beibehalten).
+  // Im Anlegen-Modus nach Erfolg leeren (im Bearbeiten-Modus wird umgeleitet).
   useEffect(() => {
-    if (state.success) formRef.current?.reset();
-  }, [state.success]);
+    if (!isEdit && state.success) formRef.current?.reset();
+  }, [state.success, isEdit]);
 
   const visibleCategories = categories.filter((c) => c.direction === direction);
 
@@ -36,7 +68,11 @@ export default function TransactionForm({
       action={formAction}
       className="rounded-xl border border-border bg-card p-5 shadow-sm"
     >
-      <h2 className="mb-4 text-sm font-semibold">Neue Buchung</h2>
+      <h2 className="mb-4 text-sm font-semibold">
+        {isEdit ? "Buchung bearbeiten" : "Neue Buchung"}
+      </h2>
+
+      {isEdit && <input type="hidden" name="id" value={editTx.id} />}
 
       {/* Richtung */}
       <div className="mb-4 grid grid-cols-2 gap-2">
@@ -71,6 +107,7 @@ export default function TransactionForm({
             name="amount"
             inputMode="decimal"
             required
+            defaultValue={editTx ? centsToInput(editTx.amount) : ""}
             placeholder="82,50"
             className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-brand"
           />
@@ -81,7 +118,7 @@ export default function TransactionForm({
             name="date"
             type="date"
             required
-            defaultValue={today}
+            defaultValue={editTx?.date ?? today}
             className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-brand"
           />
         </Field>
@@ -89,6 +126,7 @@ export default function TransactionForm({
         <Field label="Kategorie">
           <select
             name="categoryId"
+            defaultValue={editTx?.categoryId ?? ""}
             className="w-full rounded-lg border border-border bg-white px-3 py-2 outline-none focus:border-brand"
           >
             <option value="">— ohne —</option>
@@ -103,6 +141,7 @@ export default function TransactionForm({
         <Field label="Zahlungsart">
           <select
             name="paymentMethod"
+            defaultValue={editTx?.paymentMethod ?? ""}
             className="w-full rounded-lg border border-border bg-white px-3 py-2 outline-none focus:border-brand"
           >
             <option value="">— wählen —</option>
@@ -117,25 +156,53 @@ export default function TransactionForm({
       <Field label="Beschreibung" className="mt-4">
         <input
           name="description"
+          defaultValue={editTx?.description ?? ""}
           placeholder="z. B. Filament PETG 5kg"
           className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-brand"
         />
       </Field>
 
-      {state.error && (
-        <p className="mt-3 text-sm text-expense">{state.error}</p>
-      )}
-      {state.success && (
+      <Field label="Beleg (optional)" className="mt-4">
+        <select
+          name="receiptId"
+          defaultValue={editTx?.receiptId ?? ""}
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 outline-none focus:border-brand"
+        >
+          <option value="">— kein Beleg —</option>
+          {receipts.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      {state.error && <p className="mt-3 text-sm text-expense">{state.error}</p>}
+      {!isEdit && state.success && (
         <p className="mt-3 text-sm text-income">Buchung gespeichert ✓</p>
       )}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="brand-gradient mt-5 w-full rounded-lg py-2.5 font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-      >
-        {pending ? "Speichern …" : "Buchung speichern"}
-      </button>
+      <div className="mt-5 flex gap-2">
+        <button
+          type="submit"
+          disabled={pending}
+          className="brand-gradient flex-1 rounded-lg py-2.5 font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+        >
+          {pending
+            ? "Speichern …"
+            : isEdit
+              ? "Änderungen speichern"
+              : "Buchung speichern"}
+        </button>
+        {isEdit && (
+          <Link
+            href="/transactions"
+            className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition hover:bg-black/5"
+          >
+            Abbrechen
+          </Link>
+        )}
+      </div>
     </form>
   );
 }

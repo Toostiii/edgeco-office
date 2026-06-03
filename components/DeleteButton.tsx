@@ -1,19 +1,15 @@
 "use client";
 
 import { useTransition } from "react";
-import { cancelTransaction } from "@/app/(app)/transactions/actions";
+import { deleteTransaction } from "@/app/(app)/transactions/actions";
 
-export default function StornoButton({ id }: { id: string }) {
+export default function DeleteButton({ id }: { id: string }) {
   const [pending, startTransition] = useTransition();
 
   function handleClick() {
-    if (
-      confirm(
-        "Buchung stornieren? (GoBD: sie wird nicht gelöscht, sondern als storniert markiert.)",
-      )
-    ) {
+    if (confirm("Diese Buchung endgültig löschen?")) {
       startTransition(() => {
-        cancelTransaction(id);
+        deleteTransaction(id);
       });
     }
   }
@@ -24,7 +20,7 @@ export default function StornoButton({ id }: { id: string }) {
       disabled={pending}
       className="text-xs text-muted underline-offset-2 hover:text-expense hover:underline disabled:opacity-50"
     >
-      {pending ? "…" : "Storno"}
+      {pending ? "…" : "Löschen"}
     </button>
   );
 }
