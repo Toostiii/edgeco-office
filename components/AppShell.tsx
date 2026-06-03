@@ -11,7 +11,7 @@ const NAV: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "📊", ready: true },
   { label: "Einnahmen / Ausgaben", href: "/transactions", icon: "💶", ready: true },
   { label: "Belege", href: "/receipts", icon: "📎", ready: true },
-  { label: "Rechnungen", href: "/invoices", icon: "🧾" },
+  { label: "Rechnungen", href: "/invoices", icon: "🧾", ready: true },
   { label: "Kunden", href: "/customers", icon: "👥", ready: true },
   { label: "Anlagen (AfA)", href: "/assets", icon: "🏭" },
   { label: "Auswertungen / EÜR", href: "/reports", icon: "📈" },
