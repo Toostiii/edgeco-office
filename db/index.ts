@@ -15,7 +15,12 @@ if (!connectionString) {
 }
 
 // prepare: false ist für den Supabase Transaction-Pooler (Port 6543) nötig.
-const client = postgres(connectionString, { prepare: false });
+// max/idle_timeout halten die Verbindungen auf Vercel (serverless) schlank.
+const client = postgres(connectionString, {
+  prepare: false,
+  max: 1,
+  idle_timeout: 20,
+});
 
 export const db = drizzle(client, { schema });
 export { schema };
