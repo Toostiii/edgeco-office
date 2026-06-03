@@ -5,7 +5,7 @@ Kurzer Kontext, um nahtlos weiterzumachen. Letzter Stand: **Phase 4 Basis umgese
 ## Was das ist
 Selbst gebaute **EÜR-Buchhaltung** für ein Kleinunternehmen (§19 UStG, keine USt) — 3D-Druck/Stunt-Teile. Web-App, von Handy + Laptop nutzbar.
 
-- **Live:** https://edgeco-office.vercel.app (Auto-Deploy bei jedem `git push origin master`)
+- **Live:** https://edgeco-office.de (eigene Domain via Vercel; Auto-Deploy bei jedem `git push origin master`)
 - **Repo:** https://github.com/Toostiii/edgeco-office (Branch `master`, solo → direkt committen, kein PR)
 
 ## Stack
