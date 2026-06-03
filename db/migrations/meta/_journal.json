@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1780470046446,
+      "tag": "0000_broken_meteorite",
+      "breakpoints": true
+    }
+  ]
+}
