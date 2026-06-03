@@ -37,8 +37,12 @@ Next.js 16 (App Router, TS) · React 19 · Tailwind v4 · **Drizzle ORM** + **Su
 - ✅ **Phase 2** Kunden (`/customers`), Einstellungen (`/settings`), Rechnungen (`/invoices`): erstellen, Positionen, fortlaufende Nr. `RE-JJJJ-NNNN`, **PDF** (`lib/pdf/invoice-pdf.ts`), Status Entwurf/Versendet/Bezahlt, **„bezahlt" legt automatisch Einnahme an**
 - ✅ **Phase 3** Anlagen (`/assets`) mit CRUD + AfA-Plan, Auswertungen (`/reports`) mit Jahresfilter, Kategorie-/Monatsübersicht, AfA-Abzug und CSV-Export. Dashboard rechnet AfA nun in den EÜR-Gewinn ein.
 - ✅ **Phase 4 Basis** Shopify-Import (`/shopify`) per CSV/JSON mit Vorschau, Deduplizierung über `[shopify:<id>]`, Kategorie „Verkauf Teile (Shopify)" und Buchung als Einnahme.
+- ✅ **OCR** Beleg → Buchung: `tesseract.js` im Browser, `lib/ocr/parse-receipt.ts` (Betrag/Datum), Galerie-Button leitet mit Prefill zu `/transactions`.
+- ✅ **Mobile** Hamburger-Menü in `components/AppShell.tsx` (Desktop = Sidebar, mobil = Drawer).
+- ✅ **Sicherheit & Steuer** Voll-Backup-Export (`/export`, JSON, in Einstellungen). GoBD-**Festschreibung**: Tabelle `fiscalLocks`, Helper `lib/fiscal.ts` (`isYearLocked`/`getLockedYears`/`yearOf`), Lock-Actions `app/(app)/reports/lock-actions.ts`, UI `components/YearLockControl.tsx` in `/reports`. Erzwungen in `transactions/actions.ts` (create/update/delete) + `invoices` „bezahlt". **Hinweis:** Shopify-Import erzwingt die Sperre noch NICHT.
 
 ## NÄCHSTES: Shopify Admin-API / Import-Verfeinerung
+0. (Optional) Festschreibung auch im Shopify-Import erzwingen (gesperrte Jahre überspringen).
 1. Shopify Admin-API anbinden (`SHOPIFY_SHOP_DOMAIN`, Admin Access Token) und Bestellungen automatisch abrufen.
 2. Import-Vorschau um Auswahl pro Bestellung, Refund-/Fee-Behandlung und Netto-/Brutto-Felder erweitern.
 3. Optional: Importläufe dauerhaft protokollieren statt nur per Transaktionsmarker zu deduplizieren.

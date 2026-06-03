@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { parseEuroToCents } from "@/lib/money";
+import { isYearLocked, yearOf } from "@/lib/fiscal";
 import { computeInvoiceTotal, formatInvoiceNumber } from "@/lib/calc/invoice";
 import { invoiceSchema } from "@/lib/validation/invoice";
 
@@ -169,6 +170,11 @@ export async function setInvoiceStatus(
   if (!invoice) return { error: "Rechnung nicht gefunden." };
 
   if (status === "paid") {
+    if (await isYearLocked(ownerId, yearOf(invoice.date))) {
+      return {
+        error: `Jahr ${yearOf(invoice.date)} ist festgeschrieben — Zahlung kann nicht gebucht werden.`,
+      };
+    }
     const existing = await db
       .select({ id: transactions.id })
       .from(transactions)

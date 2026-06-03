@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { transactions } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { parseEuroToCents } from "@/lib/money";
+import { isYearLocked, yearOf } from "@/lib/fiscal";
 import {
   transactionSchema,
   type TransactionInput,
@@ -67,6 +68,12 @@ export async function createTransaction(
   if ("error" in result) return result;
   const data = result.data;
 
+  if (await isYearLocked(ownerId, yearOf(data.date))) {
+    return {
+      error: `Jahr ${yearOf(data.date)} ist festgeschrieben — keine neuen Buchungen möglich.`,
+    };
+  }
+
   await db.insert(transactions).values({
     ownerId,
     direction: data.direction,
@@ -101,6 +108,23 @@ export async function updateTransaction(
   if ("error" in result) return result;
   const data = result.data;
 
+  // Vorhandene Buchung laden, um ihr (altes) Jahr zu prüfen.
+  const existing = await db
+    .select({ date: transactions.date })
+    .from(transactions)
+    .where(and(eq(transactions.id, id), eq(transactions.ownerId, ownerId)))
+    .limit(1);
+  if (!existing[0]) return { error: "Buchung nicht gefunden." };
+
+  const oldYear = yearOf(existing[0].date);
+  const newYear = yearOf(data.date);
+  if (
+    (await isYearLocked(ownerId, oldYear)) ||
+    (await isYearLocked(ownerId, newYear))
+  ) {
+    return { error: "Betroffenes Jahr ist festgeschrieben — Änderung gesperrt." };
+  }
+
   await db
     .update(transactions)
     .set({
@@ -127,6 +151,15 @@ export async function deleteTransaction(id: string): Promise<ActionState> {
     ownerId = await requireUserId();
   } catch {
     return { error: "Sitzung abgelaufen. Bitte neu anmelden." };
+  }
+
+  const existing = await db
+    .select({ date: transactions.date })
+    .from(transactions)
+    .where(and(eq(transactions.id, id), eq(transactions.ownerId, ownerId)))
+    .limit(1);
+  if (existing[0] && (await isYearLocked(ownerId, yearOf(existing[0].date)))) {
+    return { error: "Jahr ist festgeschrieben — Löschen gesperrt." };
   }
 
   await db

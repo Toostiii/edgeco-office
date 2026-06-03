@@ -16,6 +16,8 @@ import {
 } from "@/lib/calc/eur";
 import { formatEuro } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
+import { getLockedYears } from "@/lib/fiscal";
+import YearLockControl from "@/components/YearLockControl";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +69,7 @@ export default async function ReportsPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [txRows, assetRows] = await Promise.all([
+  const [txRows, assetRows, lockedYears] = await Promise.all([
     db
       .select({
         id: transactions.id,
@@ -88,7 +90,9 @@ export default async function ReportsPage({
       .from(assets)
       .where(eq(assets.ownerId, user.id))
       .limit(500),
+    getLockedYears(user.id),
   ]);
+  const isLocked = lockedYears.includes(year);
 
   const bookings: Booking[] = txRows.map((row) => ({
     date: row.date,
@@ -144,6 +148,7 @@ export default async function ReportsPage({
           >
             CSV exportieren
           </Link>
+          <YearLockControl year={year} locked={isLocked} />
         </div>
       </div>
 

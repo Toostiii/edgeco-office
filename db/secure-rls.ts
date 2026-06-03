@@ -22,6 +22,7 @@ const tables = [
   "invoices",
   "invoice_items",
   "transactions",
+  "fiscal_locks",
 ];
 
 async function main() {

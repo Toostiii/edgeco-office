@@ -8,6 +8,13 @@
       "when": 1780470046446,
       "tag": "0000_broken_meteorite",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780490855672,
+      "tag": "0001_omniscient_tinkerer",
+      "breakpoints": true
     }
   ]
 }

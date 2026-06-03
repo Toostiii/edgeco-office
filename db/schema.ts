@@ -134,3 +134,11 @@ export const transactions = pgTable("transactions", {
   assetId: uuid("asset_id").references(() => assets.id),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
+
+/** GoBD-Festschreibung: gesperrte Geschäftsjahre (keine Änderungen mehr). */
+export const fiscalLocks = pgTable("fiscal_locks", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  ownerId: uuid("owner_id"),
+  year: integer("year").notNull(),
+  lockedAt: timestamp("locked_at", { withTimezone: true }).defaultNow(),
+});

@@ -8,8 +8,9 @@ export default function DeleteButton({ id }: { id: string }) {
 
   function handleClick() {
     if (confirm("Diese Buchung endgültig löschen?")) {
-      startTransition(() => {
-        deleteTransaction(id);
+      startTransition(async () => {
+        const res = await deleteTransaction(id);
+        if (res?.error) alert(res.error);
       });
     }
   }
