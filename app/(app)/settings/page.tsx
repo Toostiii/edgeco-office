@@ -27,6 +27,26 @@ export default async function SettingsPage() {
         Diese Daten erscheinen als Absender auf deinen Rechnungen.
       </p>
       <SettingsForm profile={profile} />
+
+      <section className="mt-8 max-w-2xl rounded-xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="mb-1 text-lg font-semibold">Datensicherung</h2>
+        <p className="mb-4 text-sm text-muted">
+          Lade jederzeit ein vollständiges Backup all deiner Daten (Buchungen,
+          Rechnungen, Kunden, Anlagen …) als JSON-Datei herunter. Empfehlung:
+          regelmäßig sichern, z. B. monatlich.
+        </p>
+        <a
+          href="/export"
+          className="inline-block rounded-lg border border-brand px-5 py-2.5 text-sm font-semibold text-brand transition hover:bg-brand/5"
+        >
+          ⬇ Alle Daten exportieren (JSON)
+        </a>
+        <p className="mt-3 text-xs text-muted">
+          Hinweis: Die Beleg-Dateien selbst liegen im Supabase-Speicher; das
+          Backup enthält deren Metadaten. Für die EÜR-Zahlen gibt es zusätzlich
+          den CSV-Export unter „Auswertungen".
+        </p>
+      </section>
     </div>
   );
 }
