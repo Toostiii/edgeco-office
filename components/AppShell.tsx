@@ -9,7 +9,7 @@ type NavItem = { label: string; href: string; icon: string; ready?: boolean };
 
 const NAV: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "📊", ready: true },
-  { label: "Einnahmen / Ausgaben", href: "/transactions", icon: "💶" },
+  { label: "Einnahmen / Ausgaben", href: "/transactions", icon: "💶", ready: true },
   { label: "Belege", href: "/receipts", icon: "📎" },
   { label: "Rechnungen", href: "/invoices", icon: "🧾" },
   { label: "Kunden", href: "/customers", icon: "👥" },
