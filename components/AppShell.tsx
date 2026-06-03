@@ -14,11 +14,79 @@ const NAV: NavItem[] = [
   { label: "Belege", href: "/receipts", icon: "📎", ready: true },
   { label: "Rechnungen", href: "/invoices", icon: "🧾", ready: true },
   { label: "Kunden", href: "/customers", icon: "👥", ready: true },
+  { label: "Kategorien", href: "/categories", icon: "🏷️", ready: true },
   { label: "Shopify-Import", href: "/shopify", icon: "🛒", ready: true },
   { label: "Anlagen (AfA)", href: "/assets", icon: "🏭", ready: true },
   { label: "Auswertungen / EÜR", href: "/reports", icon: "📈", ready: true },
   { label: "Einstellungen", href: "/settings", icon: "⚙️", ready: true },
 ];
+
+function NavLinks({
+  pathname,
+  onNavigate,
+}: {
+  pathname: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <nav className="flex flex-1 flex-col gap-1">
+      {NAV.map((item) => {
+        const active = pathname === item.href;
+        const base =
+          "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition";
+        if (!item.ready) {
+          return (
+            <span
+              key={item.href}
+              className={`${base} cursor-default text-muted/60`}
+              title="Kommt in einer der nächsten Phasen"
+            >
+              <span>{item.icon}</span>
+              {item.label}
+            </span>
+          );
+        }
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            className={`${base} ${
+              active
+                ? "bg-brand/10 font-semibold text-brand"
+                : "text-foreground hover:bg-black/5"
+            }`}
+          >
+            <span>{item.icon}</span>
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function UserFooter({
+  user,
+  onLogout,
+}: {
+  user: string;
+  onLogout: () => void;
+}) {
+  return (
+    <div className="mt-4 border-t border-border pt-4">
+      <p className="mb-2 truncate text-xs text-muted" title={user}>
+        {user}
+      </p>
+      <button
+        onClick={onLogout}
+        className="w-full rounded-lg border border-border px-3 py-2 text-sm transition hover:bg-black/5"
+      >
+        Abmelden
+      </button>
+    </div>
+  );
+}
 
 export default function AppShell({
   user,
@@ -38,61 +106,6 @@ export default function AppShell({
     router.refresh();
   }
 
-  function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
-    return (
-      <nav className="flex flex-1 flex-col gap-1">
-        {NAV.map((item) => {
-          const active = pathname === item.href;
-          const base =
-            "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition";
-          if (!item.ready) {
-            return (
-              <span
-                key={item.href}
-                className={`${base} cursor-default text-muted/60`}
-                title="Kommt in einer der nächsten Phasen"
-              >
-                <span>{item.icon}</span>
-                {item.label}
-              </span>
-            );
-          }
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onNavigate}
-              className={`${base} ${
-                active
-                  ? "bg-brand/10 font-semibold text-brand"
-                  : "text-foreground hover:bg-black/5"
-              }`}
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-    );
-  }
-
-  function UserFooter() {
-    return (
-      <div className="mt-4 border-t border-border pt-4">
-        <p className="mb-2 truncate text-xs text-muted" title={user}>
-          {user}
-        </p>
-        <button
-          onClick={logout}
-          className="w-full rounded-lg border border-border px-3 py-2 text-sm transition hover:bg-black/5"
-        >
-          Abmelden
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-screen flex-1">
       {/* Seitenleiste (Desktop) */}
@@ -104,8 +117,8 @@ export default function AppShell({
           height={90}
           className="mb-6 h-auto w-[130px]"
         />
-        <NavLinks />
-        <UserFooter />
+        <NavLinks pathname={pathname} />
+        <UserFooter user={user} onLogout={logout} />
       </aside>
 
       {/* Mobiles Menü (Drawer) */}
@@ -133,8 +146,11 @@ export default function AppShell({
                 ✕
               </button>
             </div>
-            <NavLinks onNavigate={() => setMobileOpen(false)} />
-            <UserFooter />
+            <NavLinks
+              pathname={pathname}
+              onNavigate={() => setMobileOpen(false)}
+            />
+            <UserFooter user={user} onLogout={logout} />
           </aside>
         </div>
       )}

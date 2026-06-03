@@ -44,7 +44,7 @@ export default async function SettingsPage() {
         <p className="mt-3 text-xs text-muted">
           Hinweis: Die Beleg-Dateien selbst liegen im Supabase-Speicher; das
           Backup enthält deren Metadaten. Für die EÜR-Zahlen gibt es zusätzlich
-          den CSV-Export unter „Auswertungen".
+          den CSV-Export unter „Auswertungen&ldquo;.
         </p>
       </section>
     </div>

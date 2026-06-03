@@ -140,10 +140,17 @@ export default async function ReportsPage({
             </button>
           </form>
           <Link
-            href={`/reports/export?year=${year}`}
+            href={`/reports/pdf?year=${year}`}
+            target="_blank"
             className="brand-gradient rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90"
           >
-            CSV exportieren
+            EÜR als PDF
+          </Link>
+          <Link
+            href={`/reports/export?year=${year}`}
+            className="rounded-lg border border-border px-3 py-2 text-sm font-medium transition hover:bg-black/5"
+          >
+            CSV
           </Link>
           <YearLockControl year={year} locked={isLocked} />
         </div>
