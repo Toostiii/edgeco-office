@@ -5,11 +5,13 @@
  */
 import {
   PDFDocument,
+  AFRelationship,
   StandardFonts,
   rgb,
   type PDFFont,
   type PDFPage,
 } from "pdf-lib";
+import { generateZugferdXml } from "./zugferd";
 
 export interface InvoicePdfData {
   profile: {
@@ -154,6 +156,8 @@ export async function generateInvoicePdf(
   right(`Rechnungsnr.: ${data.invoice.number}`, W - M, my, 10, font);
   my -= 15;
   right(`Datum: ${formatDate(data.invoice.date)}`, W - M, my, 10, font);
+  my -= 15;
+  right(`Leistungsdatum: ${formatDate(data.invoice.date)}`, W - M, my, 10, font, GREY);
 
   // Positionstabelle
   const colPos = M;
@@ -228,6 +232,23 @@ export async function generateInvoicePdf(
 
   // Fußzeile
   drawFooter(page, font, data, W, M);
+
+  // Factur-X MINIMUM XML einbetten (E-Rechnungspflicht §14 UStG ab 2025).
+  const zugferdXml = generateZugferdXml({
+    invoiceNumber: data.invoice.number,
+    invoiceDate: data.invoice.date,
+    sellerName: data.profile.name,
+    steuernummer: data.profile.steuernummer,
+    buyerName: data.customer.name,
+    totalCents: data.invoice.total,
+  });
+  await pdf.attach(new TextEncoder().encode(zugferdXml), "factur-x.xml", {
+    mimeType: "text/xml; charset=utf-8",
+    description: "Factur-X Invoice",
+    creationDate: new Date(),
+    modificationDate: new Date(),
+    afRelationship: AFRelationship.Alternative,
+  });
 
   return pdf.save();
 }
