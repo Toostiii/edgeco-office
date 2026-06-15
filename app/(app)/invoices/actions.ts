@@ -1,5 +1,7 @@
 "use server";
 
+import fs from "fs/promises";
+import path from "path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
@@ -7,6 +9,7 @@ import { db } from "@/db";
 import {
   invoices,
   invoiceItems,
+  customers,
   companyProfile,
   transactions,
   categories,
@@ -16,6 +19,7 @@ import { parseEuroToCents } from "@/lib/money";
 import { isYearLocked, yearOf } from "@/lib/fiscal";
 import { computeInvoiceTotal, formatInvoiceNumber } from "@/lib/calc/invoice";
 import { invoiceSchema } from "@/lib/validation/invoice";
+import { generateInvoicePdf } from "@/lib/pdf/invoice-pdf";
 
 export type ActionState = { error?: string; success?: boolean };
 
@@ -82,6 +86,9 @@ export async function createInvoice(
   );
   const year = Number(data.date.slice(0, 4));
 
+  let createdId = "";
+  let createdNumber = "";
+
   await db.transaction(async (tx) => {
     const profile = await tx.select().from(companyProfile).limit(1);
     const seq = profile[0]?.nextInvoiceNo ?? 1;
@@ -99,10 +106,12 @@ export async function createInvoice(
       })
       .returning({ id: invoices.id });
 
-    const invoiceId = inserted[0].id;
+    createdId = inserted[0].id;
+    createdNumber = number;
+
     await tx.insert(invoiceItems).values(
       data.lines.map((l) => ({
-        invoiceId,
+        invoiceId: createdId,
         description: l.description,
         quantity: l.quantity,
         unitPrice: l.unitPriceCents,
@@ -117,6 +126,78 @@ export async function createInvoice(
     }
   });
 
+  // PDF generieren und in Storage archivieren (GoBD: unveränderbare Ablage).
+  // Fehler hier blockieren nicht die Rechnungserstellung.
+  try {
+    const [itemsForPdf, customerRows, profileRows] = await Promise.all([
+      db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, createdId)),
+      data.customerId
+        ? db
+            .select()
+            .from(customers)
+            .where(eq(customers.id, data.customerId))
+            .limit(1)
+        : Promise.resolve([]),
+      db.select().from(companyProfile).limit(1),
+    ]);
+
+    const customer = customerRows[0];
+    const profile = profileRows[0];
+
+    let logo: Uint8Array | null = null;
+    try {
+      const buf = await fs.readFile(
+        path.join(process.cwd(), "public", "logo.png"),
+      );
+      logo = new Uint8Array(buf);
+    } catch {
+      /* Logo optional */
+    }
+
+    const pdfBytes = await generateInvoicePdf({
+      profile: {
+        name: profile?.name ?? "EDGECO",
+        address: profile?.address ?? null,
+        steuernummer: profile?.steuernummer ?? null,
+        iban: profile?.iban ?? null,
+        kleinunternehmerHinweis: profile?.kleinunternehmerHinweis ?? null,
+      },
+      customer: {
+        name: customer?.name ?? "—",
+        address: customer?.address ?? null,
+      },
+      invoice: {
+        number: createdNumber,
+        date: data.date,
+        total,
+      },
+      items: itemsForPdf.map((it) => ({
+        description: it.description,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+      })),
+      logo,
+    });
+
+    const storagePath = `rechnungen/${createdNumber}.pdf`;
+    const supabase = await createClient();
+    const { error: uploadError } = await supabase.storage
+      .from("belege")
+      .upload(storagePath, Buffer.from(pdfBytes), {
+        contentType: "application/pdf",
+        upsert: false,
+      });
+
+    if (!uploadError) {
+      await db
+        .update(invoices)
+        .set({ pdfPath: storagePath })
+        .where(eq(invoices.id, createdId));
+    }
+  } catch {
+    // PDF-Archivierung fehlgeschlagen — Rechnung ist trotzdem gespeichert.
+  }
+
   revalidatePath("/invoices");
   redirect("/invoices");
 }
@@ -127,6 +208,22 @@ export async function deleteInvoice(id: string): Promise<ActionState> {
     ownerId = await requireUserId();
   } catch {
     return { error: "Sitzung abgelaufen. Bitte neu anmelden." };
+  }
+
+  // Rechnung laden um ggf. archiviertes PDF zu entfernen.
+  const found = await db
+    .select({ pdfPath: invoices.pdfPath })
+    .from(invoices)
+    .where(and(eq(invoices.id, id), eq(invoices.ownerId, ownerId)))
+    .limit(1);
+
+  if (found[0]?.pdfPath) {
+    try {
+      const supabase = await createClient();
+      await supabase.storage.from("belege").remove([found[0].pdfPath]);
+    } catch {
+      /* Storage-Fehler nicht blockieren */
+    }
   }
 
   // Eventuelle verknüpfte Einnahme lösen (Buchung bleibt erhalten).

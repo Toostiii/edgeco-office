@@ -1,6 +1,8 @@
 /**
  * Liefert das Rechnungs-PDF. Eigene Auth-Prüfung, da Route-Handler nicht vom
  * (app)-Layout geschützt werden.
+ * Archiviertes PDF (pdfPath) wird bevorzugt aus Storage geladen; sonst
+ * on-the-fly generiert (Fallback für ältere Rechnungen).
  */
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -33,6 +35,18 @@ export async function GET(
   const invoice = invoiceRows[0];
   if (!invoice) return new Response("Rechnung nicht gefunden.", { status: 404 });
 
+  // Archiviertes PDF aus Storage liefern (GoBD-konform, unveränderbar).
+  if (invoice.pdfPath) {
+    const { data: signed } = await supabase.storage
+      .from("belege")
+      .createSignedUrl(invoice.pdfPath, 300);
+
+    if (signed?.signedUrl) {
+      return Response.redirect(signed.signedUrl);
+    }
+  }
+
+  // Fallback: on-the-fly generieren (für Rechnungen ohne archiviertes PDF).
   const [items, customerRows, profileRows] = await Promise.all([
     db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, id)),
     invoice.customerId
