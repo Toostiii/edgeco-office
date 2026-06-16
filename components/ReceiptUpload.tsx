@@ -52,7 +52,12 @@ export default function ReceiptUpload() {
         return;
       }
 
-      const res = await createReceipt({ filePath: path, fileHash: hash, note });
+      const fallbackNote = file.name.replace(/\.[^./\\]+$/, "");
+      const res = await createReceipt({
+        filePath: path,
+        fileHash: hash,
+        note: note.trim() || fallbackNote,
+      });
       if (res.error) {
         setError(res.error);
         return;
@@ -81,7 +86,7 @@ export default function ReceiptUpload() {
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="z. B. Tankquittung, Materialeinkauf"
+          placeholder="leer = Dateiname wird verwendet"
           className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-brand"
         />
       </label>

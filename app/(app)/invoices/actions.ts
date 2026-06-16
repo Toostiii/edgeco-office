@@ -13,6 +13,7 @@ import {
   companyProfile,
   transactions,
   categories,
+  quotes,
 } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { parseEuroToCents } from "@/lib/money";
@@ -229,7 +230,11 @@ export async function deleteInvoice(id: string): Promise<ActionState> {
     .where(and(eq(invoices.id, id), eq(invoices.ownerId, ownerId)))
     .limit(1);
 
-  if (found[0]?.pdfPath) {
+  if (!found[0]) {
+    return { error: "Rechnung nicht gefunden oder keine Berechtigung." };
+  }
+
+  if (found[0].pdfPath) {
     try {
       const supabase = await createClient();
       await supabase.storage.from("belege").remove([found[0].pdfPath]);
@@ -238,20 +243,42 @@ export async function deleteInvoice(id: string): Promise<ActionState> {
     }
   }
 
-  // Eventuelle verknüpfte Einnahme lösen (Buchung bleibt erhalten).
-  await db
-    .update(transactions)
-    .set({ invoiceId: null })
-    .where(and(eq(transactions.invoiceId, id), eq(transactions.ownerId, ownerId)));
+  try {
+    // Eventuelle verknüpfte Einnahme lösen (Buchung bleibt erhalten).
+    await db
+      .update(transactions)
+      .set({ invoiceId: null })
+      .where(and(eq(transactions.invoiceId, id), eq(transactions.ownerId, ownerId)));
 
-  // Items werden per FK-Cascade mitgelöscht.
-  await db
-    .delete(invoices)
-    .where(and(eq(invoices.id, id), eq(invoices.ownerId, ownerId)));
+    // Eventuell verknüpftes Angebot lösen (sonst FK-Konflikt beim Löschen).
+    await db
+      .update(quotes)
+      .set({ invoiceId: null })
+      .where(eq(quotes.invoiceId, id));
+
+    // Items werden per FK-Cascade mitgelöscht.
+    const deleted = await db
+      .delete(invoices)
+      .where(and(eq(invoices.id, id), eq(invoices.ownerId, ownerId)))
+      .returning({ id: invoices.id });
+
+    if (deleted.length === 0) {
+      return { error: "Rechnung konnte nicht gelöscht werden (nicht gefunden)." };
+    }
+  } catch (err) {
+    return {
+      error:
+        err instanceof Error
+          ? `Löschen fehlgeschlagen: ${err.message}`
+          : "Löschen fehlgeschlagen.",
+    };
+  }
 
   revalidatePath("/invoices");
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
+  revalidatePath("/angebote");
+  revalidatePath("/offene-posten");
   return { success: true };
 }
 
