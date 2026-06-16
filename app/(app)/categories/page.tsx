@@ -8,6 +8,7 @@ import { asc, eq, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { categories, transactions } from "@/db/schema";
 import { getCachedUser } from "@/lib/supabase/user";
+import { findKennzahl } from "@/lib/elster";
 import CategoryForm, { type EditCategory } from "@/components/CategoryForm";
 import CategoryDeleteButton from "@/components/CategoryDeleteButton";
 
@@ -34,6 +35,7 @@ export default async function CategoriesPage({
         id: categories.id,
         name: categories.name,
         direction: categories.direction,
+        elsterKennzahl: categories.elsterKennzahl,
       })
       .from(categories)
       .where(visible)
@@ -61,6 +63,7 @@ export default async function CategoriesPage({
         id: found.id,
         name: found.name,
         direction: found.direction,
+        elsterKennzahl: found.elsterKennzahl,
       };
     }
   }
@@ -111,7 +114,12 @@ function CategoryColumn({
 }: {
   title: string;
   accent: "income" | "expense";
-  items: { id: string; name: string; direction: "income" | "expense" }[];
+  items: {
+    id: string;
+    name: string;
+    direction: "income" | "expense";
+    elsterKennzahl: string | null;
+  }[];
   usage: Map<string, number>;
   edit?: string;
 }) {
@@ -131,6 +139,7 @@ function CategoryColumn({
         <ul className="divide-y divide-border">
           {items.map((c) => {
             const count = usage.get(c.id) ?? 0;
+            const kz = findKennzahl(c.elsterKennzahl);
             return (
               <li
                 key={c.id}
@@ -146,6 +155,14 @@ function CategoryColumn({
                       : count === 1
                         ? "1 Buchung"
                         : `${count} Buchungen`}
+                    {kz && (
+                      <span
+                        title={kz.label}
+                        className="ml-2 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-medium text-muted"
+                      >
+                        EÜR Zeile {kz.zeile}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <div className="whitespace-nowrap">

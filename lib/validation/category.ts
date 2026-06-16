@@ -4,6 +4,7 @@ import { z } from "zod";
 export const categorySchema = z.object({
   name: z.string().trim().min(1, "Name ist erforderlich.").max(120),
   direction: z.enum(["income", "expense"]),
+  elsterKennzahl: z.string().trim().max(10).nullable().optional(),
 });
 
 export type CategoryInput = z.infer<typeof categorySchema>;

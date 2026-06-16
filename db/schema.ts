@@ -74,6 +74,8 @@ export const categories = pgTable("categories", {
   ownerId: uuid("owner_id"),
   name: text("name").notNull(),
   direction: directionEnum("direction").notNull(),
+  /** Kennzahl der "Anlage EÜR" (z. B. "111" = Zeile 12, Kleinunternehmer-Einnahmen). */
+  elsterKennzahl: text("elster_kennzahl"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 

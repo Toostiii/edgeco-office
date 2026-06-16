@@ -14,6 +14,7 @@ import {
   totalIncome,
   type Booking,
 } from "@/lib/calc/eur";
+import { buildElsterSummary } from "@/lib/calc/elster-eur";
 import { formatEuro } from "@/lib/money";
 import { getCachedUser } from "@/lib/supabase/user";
 import { getLockedYears } from "@/lib/fiscal";
@@ -29,6 +30,7 @@ type TxRow = {
   status: "posted" | "cancelled";
   description: string | null;
   categoryName: string | null;
+  categoryKennzahl: string | null;
 };
 
 type CategorySummary = {
@@ -76,6 +78,7 @@ export default async function ReportsPage({
         status: transactions.status,
         description: transactions.description,
         categoryName: categories.name,
+        categoryKennzahl: categories.elsterKennzahl,
       })
       .from(transactions)
       .leftJoin(categories, eq(transactions.categoryId, categories.id))
@@ -108,6 +111,18 @@ export default async function ReportsPage({
   const categoriesForYear = categorySummary(txRows, year);
   const months = monthlySummary(bookings, year);
   const years = availableYears(txRows, assetRows, currentYear);
+
+  const elsterRowsForYear = txRows.filter(
+    (row) => row.status !== "cancelled" && Number(row.date.slice(0, 4)) === year,
+  );
+  const elsterSummary = buildElsterSummary(
+    elsterRowsForYear.map((row) => ({
+      direction: row.direction,
+      amount: row.amount,
+      categoryKennzahl: row.categoryKennzahl,
+    })),
+    depreciation,
+  );
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -151,6 +166,12 @@ export default async function ReportsPage({
             className="rounded-lg border border-border px-3 py-2 text-sm font-medium transition hover:bg-black/5"
           >
             CSV
+          </Link>
+          <Link
+            href={`/reports/elster?year=${year}`}
+            className="rounded-lg border border-border px-3 py-2 text-sm font-medium transition hover:bg-black/5"
+          >
+            Anlage EÜR (CSV)
           </Link>
           <YearLockControl year={year} locked={isLocked} />
         </div>
@@ -262,6 +283,69 @@ export default async function ReportsPage({
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-xl border border-border bg-card p-5 shadow-sm">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Anlage EÜR {year} (ELSTER-Kennzahlen)</h2>
+          <Link
+            href={`/reports/elster?year=${year}`}
+            className="text-xs font-medium text-brand underline-offset-2 hover:underline"
+          >
+            Als CSV exportieren
+          </Link>
+        </div>
+        <p className="mb-4 text-xs text-muted">
+          Ordnet deine Buchungen den offiziellen Zeilen des Formulars „Anlage
+          EÜR" zu (BMF-Vordruck 2025). Trage die Summen bei der
+          Steuererklärung in die jeweilige Zeile ein.
+        </p>
+        {elsterSummary.lines.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted">
+            Keine zugeordneten Buchungen in diesem Jahr.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
+                  <th className="py-2 pr-3">Zeile</th>
+                  <th className="py-2 pr-3">Bezeichnung</th>
+                  <th className="py-2 pr-3 text-right">Betrag</th>
+                </tr>
+              </thead>
+              <tbody>
+                {elsterSummary.lines.map((line) => (
+                  <tr key={line.kennzahl.code} className="border-b border-border/60">
+                    <td className="py-2 pr-3 whitespace-nowrap font-medium">
+                      {line.kennzahl.zeile}
+                    </td>
+                    <td className="py-2 pr-3">{line.kennzahl.label}</td>
+                    <td
+                      className={`py-2 pr-3 text-right whitespace-nowrap ${
+                        line.kennzahl.direction === "income"
+                          ? "text-income"
+                          : "text-expense"
+                      }`}
+                    >
+                      {formatEuro(line.amountCents)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {(elsterSummary.unmappedIncomeCents > 0 ||
+          elsterSummary.unmappedExpenseCents > 0) && (
+          <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+            Nicht zugeordnet: {formatEuro(elsterSummary.unmappedIncomeCents)}{" "}
+            Einnahmen, {formatEuro(elsterSummary.unmappedExpenseCents)} Ausgaben.{" "}
+            <Link href="/categories" className="font-medium underline">
+              Kategorien zuordnen →
+            </Link>
           </div>
         )}
       </section>

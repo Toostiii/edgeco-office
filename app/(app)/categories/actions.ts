@@ -29,15 +29,31 @@ function ownedBy(uid: string): SQL | undefined {
 
 function parseForm(
   formData: FormData,
-): { data: { name: string; direction: "income" | "expense" } } | { error: string } {
+):
+  | {
+      data: {
+        name: string;
+        direction: "income" | "expense";
+        elsterKennzahl: string | null;
+      };
+    }
+  | { error: string } {
+  const rawKennzahl = String(formData.get("elsterKennzahl") ?? "").trim();
   const parsed = categorySchema.safeParse({
     name: String(formData.get("name") ?? ""),
     direction: formData.get("direction"),
+    elsterKennzahl: rawKennzahl === "" ? null : rawKennzahl,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Eingabe ungültig." };
   }
-  return { data: { name: parsed.data.name, direction: parsed.data.direction } };
+  return {
+    data: {
+      name: parsed.data.name,
+      direction: parsed.data.direction,
+      elsterKennzahl: parsed.data.elsterKennzahl ?? null,
+    },
+  };
 }
 
 export async function createCategory(
@@ -57,6 +73,7 @@ export async function createCategory(
     ownerId,
     name: result.data.name,
     direction: result.data.direction,
+    elsterKennzahl: result.data.elsterKennzahl,
   });
 
   revalidatePath("/categories");
@@ -82,7 +99,11 @@ export async function updateCategory(
 
   await db
     .update(categories)
-    .set({ name: result.data.name, direction: result.data.direction })
+    .set({
+      name: result.data.name,
+      direction: result.data.direction,
+      elsterKennzahl: result.data.elsterKennzahl,
+    })
     .where(and(eq(categories.id, id), ownedBy(ownerId)));
 
   revalidatePath("/categories");

@@ -1,0 +1,1 @@
+ALTER TABLE "categories" ADD COLUMN "elster_kennzahl" text;
