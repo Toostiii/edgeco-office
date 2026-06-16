@@ -60,6 +60,7 @@ export default async function TransactionsPage({
         paymentMethod: transactions.paymentMethod,
         categoryName: categories.name,
         receiptId: transactions.receiptId,
+        splitGroupId: transactions.splitGroupId,
       })
       .from(transactions)
       .leftJoin(categories, eq(transactions.categoryId, categories.id))
@@ -147,8 +148,20 @@ export default async function TransactionsPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => {
+                  {(() => {
+                    const splitCounts = new Map<string, number>();
+                    for (const r of rows) {
+                      if (!r.splitGroupId) continue;
+                      splitCounts.set(
+                        r.splitGroupId,
+                        (splitCounts.get(r.splitGroupId) ?? 0) + 1,
+                      );
+                    }
+                    return rows.map((r) => {
                     const isEditing = r.id === edit;
+                    const isSplit =
+                      !!r.splitGroupId &&
+                      (splitCounts.get(r.splitGroupId) ?? 0) > 1;
                     return (
                       <tr
                         key={r.id}
@@ -158,6 +171,14 @@ export default async function TransactionsPage({
                       >
                         <td className="py-2 pr-3 whitespace-nowrap">{r.date}</td>
                         <td className="py-2 pr-3">
+                          {isSplit && (
+                            <span
+                              title="Teil einer Splitbuchung"
+                              className="mr-1 rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand"
+                            >
+                              Split
+                            </span>
+                          )}
                           {r.description ?? "—"}
                           {r.receiptId && (
                             <span title="Beleg verknüpft" className="ml-1">
@@ -189,7 +210,8 @@ export default async function TransactionsPage({
                         </td>
                       </tr>
                     );
-                  })}
+                  });
+                  })()}
                 </tbody>
               </table>
             </div>

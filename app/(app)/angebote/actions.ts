@@ -25,6 +25,7 @@ import {
 import { quoteSchema } from "@/lib/validation/quote";
 import { generateQuotePdf } from "@/lib/pdf/quote-pdf";
 import { generateInvoicePdf } from "@/lib/pdf/invoice-pdf";
+import { isYearLocked, yearOf } from "@/lib/fiscal";
 
 export type ActionState = { error?: string; success?: boolean };
 
@@ -294,6 +295,12 @@ export async function convertToInvoice(id: string): Promise<ActionState> {
 
   const today = new Date().toISOString().slice(0, 10);
   const year = Number(today.slice(0, 4));
+
+  if (await isYearLocked(ownerId, yearOf(today))) {
+    return {
+      error: `Jahr ${yearOf(today)} ist festgeschrieben — Umwandlung nicht möglich.`,
+    };
+  }
 
   let invoiceId = "";
   let invoiceNumber = "";
