@@ -87,6 +87,7 @@ export async function GET(
       number: invoice.number,
       date: invoice.date,
       total: invoice.total,
+      dueDate: invoice.dueDate ?? null,
     },
     items: items.map((it) => ({
       description: it.description,

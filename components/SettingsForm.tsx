@@ -13,6 +13,7 @@ export type Profile = {
   iban: string | null;
   kleinunternehmerHinweis: string | null;
   nextInvoiceNo: number;
+  paymentTermsDays: number;
 };
 
 export default function SettingsForm({ profile }: { profile: Profile }) {
@@ -70,6 +71,16 @@ export default function SettingsForm({ profile }: { profile: Profile }) {
             type="number"
             min={1}
             defaultValue={profile.nextInvoiceNo}
+            className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-brand"
+          />
+        </Field>
+
+        <Field label="Zahlungsziel (Tage)">
+          <input
+            name="paymentTermsDays"
+            type="number"
+            min={0}
+            defaultValue={profile.paymentTermsDays}
             className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-brand"
           />
         </Field>

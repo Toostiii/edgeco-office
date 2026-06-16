@@ -18,6 +18,7 @@ export default async function SettingsPage() {
     iban: row?.iban ?? null,
     kleinunternehmerHinweis: row?.kleinunternehmerHinweis ?? null,
     nextInvoiceNo: row?.nextInvoiceNo ?? 1,
+    paymentTermsDays: row?.paymentTermsDays ?? 14,
   };
 
   return (

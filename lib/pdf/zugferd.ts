@@ -17,6 +17,7 @@ export interface ZugferdData {
   steuernummer: string | null;
   buyerName: string;
   totalCents: number; // Gesamtbetrag in Cent
+  dueDate?: string | null; // ISO "YYYY-MM-DD", Fälligkeitsdatum
 }
 
 function xe(s: string): string {
@@ -39,6 +40,14 @@ export function generateZugferdXml(d: ZugferdData): string {
   const total = euro(d.totalCents);
   const country = xe(d.sellerCountry ?? "DE");
   const dateStr = compact(d.invoiceDate);
+
+  const paymentTerms = d.dueDate
+    ? `<ram:SpecifiedTradePaymentTerms>
+        <ram:DueDateDateTime>
+          <udt:DateTimeString format="102">${compact(d.dueDate)}</udt:DateTimeString>
+        </ram:DueDateDateTime>
+      </ram:SpecifiedTradePaymentTerms>`
+    : "";
 
   const taxReg = d.steuernummer
     ? `<ram:SpecifiedTaxRegistration>
@@ -90,6 +99,7 @@ export function generateZugferdXml(d: ZugferdData): string {
 
     <ram:ApplicableHeaderTradeSettlement>
       <ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>
+      ${paymentTerms}
       <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
         <ram:TaxBasisTotalAmount>${total}</ram:TaxBasisTotalAmount>
         <ram:TaxTotalAmount currencyID="EUR">0.00</ram:TaxTotalAmount>

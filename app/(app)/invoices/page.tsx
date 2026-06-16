@@ -3,7 +3,7 @@
  */
 import { desc, eq, asc } from "drizzle-orm";
 import { db } from "@/db";
-import { invoices, customers } from "@/db/schema";
+import { invoices, customers, companyProfile } from "@/db/schema";
 import { formatEuro } from "@/lib/money";
 import InvoiceForm, { type CustomerOption } from "@/components/InvoiceForm";
 import InvoiceActions from "@/components/InvoiceActions";
@@ -24,24 +24,33 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default async function InvoicesPage() {
-  const customerRows = (await db
-    .select({ id: customers.id, name: customers.name })
-    .from(customers)
-    .orderBy(asc(customers.name))) as CustomerOption[];
+  const [customerRows, profileRows, rows] = await Promise.all([
+    db
+      .select({ id: customers.id, name: customers.name })
+      .from(customers)
+      .orderBy(asc(customers.name)) as Promise<CustomerOption[]>,
+    db
+      .select({ paymentTermsDays: companyProfile.paymentTermsDays })
+      .from(companyProfile)
+      .limit(1),
+    db
+      .select({
+        id: invoices.id,
+        number: invoices.number,
+        date: invoices.date,
+        dueDate: invoices.dueDate,
+        total: invoices.total,
+        status: invoices.status,
+        dunningLevel: invoices.dunningLevel,
+        customerName: customers.name,
+      })
+      .from(invoices)
+      .leftJoin(customers, eq(invoices.customerId, customers.id))
+      .orderBy(desc(invoices.date), desc(invoices.createdAt))
+      .limit(200),
+  ]);
 
-  const rows = await db
-    .select({
-      id: invoices.id,
-      number: invoices.number,
-      date: invoices.date,
-      total: invoices.total,
-      status: invoices.status,
-      customerName: customers.name,
-    })
-    .from(invoices)
-    .leftJoin(customers, eq(invoices.customerId, customers.id))
-    .orderBy(desc(invoices.date), desc(invoices.createdAt))
-    .limit(200);
+  const paymentTermsDays = profileRows[0]?.paymentTermsDays ?? 14;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -59,7 +68,10 @@ export default async function InvoicesPage() {
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[420px_1fr]">
           <div>
-            <InvoiceForm customers={customerRows} />
+            <InvoiceForm
+              customers={customerRows}
+              defaultPaymentTermsDays={paymentTermsDays}
+            />
           </div>
 
           <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
@@ -104,7 +116,12 @@ export default async function InvoicesPage() {
                           </span>
                         </td>
                         <td className="py-2">
-                          <InvoiceActions id={r.id} status={r.status} />
+                          <InvoiceActions
+                            id={r.id}
+                            status={r.status}
+                            dueDate={r.dueDate}
+                            dunningLevel={r.dunningLevel ?? 0}
+                          />
                         </td>
                       </tr>
                     ))}

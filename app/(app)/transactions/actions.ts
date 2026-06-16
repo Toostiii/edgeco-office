@@ -10,6 +10,7 @@ import { parseEuroToCents } from "@/lib/money";
 import { isYearLocked, yearOf } from "@/lib/fiscal";
 import {
   transactionSchema,
+  splitTransactionSchema,
   type TransactionInput,
 } from "@/lib/validation/transaction";
 
@@ -142,6 +143,101 @@ export async function updateTransaction(
   revalidatePath("/dashboard");
   // Bearbeitungsmodus verlassen.
   redirect("/transactions");
+}
+
+/** Liest + validiert eine Splitbuchung (mehrere Kategorie/Betrag-Zeilen, JSON-codiert). */
+function parseSplitForm(
+  formData: FormData,
+):
+  | { data: ReturnType<typeof splitTransactionSchema.parse> }
+  | { error: string } {
+  let linesRaw: unknown;
+  try {
+    linesRaw = JSON.parse(String(formData.get("lines") ?? "[]"));
+  } catch {
+    return { error: "Split-Zeilen sind ungültig." };
+  }
+  if (!Array.isArray(linesRaw)) return { error: "Split-Zeilen sind ungültig." };
+
+  const lines: { amountCents: number; categoryId: string | null; description?: string }[] = [];
+  for (const line of linesRaw as Array<{
+    amount?: string;
+    categoryId?: string;
+    description?: string;
+  }>) {
+    let amountCents: number;
+    try {
+      amountCents = parseEuroToCents(String(line.amount ?? ""));
+    } catch {
+      return { error: "Ein Betrag in der Splitbuchung ist ungültig (z. B. 12,30)." };
+    }
+    lines.push({
+      amountCents,
+      categoryId: line.categoryId ? line.categoryId : null,
+      description: line.description ?? "",
+    });
+  }
+
+  const receiptRaw = String(formData.get("receiptId") ?? "");
+  const parsed = splitTransactionSchema.safeParse({
+    direction: formData.get("direction"),
+    date: String(formData.get("date") ?? ""),
+    receiptId: receiptRaw === "" ? null : receiptRaw,
+    paymentMethod: String(formData.get("paymentMethod") ?? ""),
+    lines,
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Eingabe ungültig." };
+  }
+  return { data: parsed.data };
+}
+
+/**
+ * Splitbuchung anlegen: ein Vorgang wird auf mehrere Kategorien aufgeteilt.
+ * Jede Zeile wird als eigene Buchung gespeichert, alle teilen eine
+ * gemeinsame splitGroupId zur späteren Zuordnung/Anzeige.
+ */
+export async function createSplitTransaction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  let ownerId: string;
+  try {
+    ownerId = await requireUserId();
+  } catch {
+    return { error: "Sitzung abgelaufen. Bitte neu anmelden." };
+  }
+
+  const result = parseSplitForm(formData);
+  if ("error" in result) return result;
+  const data = result.data;
+
+  if (await isYearLocked(ownerId, yearOf(data.date))) {
+    return {
+      error: `Jahr ${yearOf(data.date)} ist festgeschrieben — keine neuen Buchungen möglich.`,
+    };
+  }
+
+  const splitGroupId = crypto.randomUUID();
+
+  await db.insert(transactions).values(
+    data.lines.map((line) => ({
+      ownerId,
+      direction: data.direction,
+      amount: line.amountCents,
+      date: data.date,
+      categoryId: line.categoryId ?? null,
+      receiptId: data.receiptId ?? null,
+      description: line.description || null,
+      paymentMethod: data.paymentMethod || null,
+      splitGroupId,
+    })),
+  );
+
+  revalidatePath("/transactions");
+  revalidatePath("/dashboard");
+  return { success: true };
 }
 
 /** Buchung endgültig löschen (für versehentliche Eingaben). */

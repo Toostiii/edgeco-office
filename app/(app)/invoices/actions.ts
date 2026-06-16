@@ -17,9 +17,14 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { parseEuroToCents } from "@/lib/money";
 import { isYearLocked, yearOf } from "@/lib/fiscal";
-import { computeInvoiceTotal, formatInvoiceNumber } from "@/lib/calc/invoice";
+import {
+  computeInvoiceTotal,
+  formatInvoiceNumber,
+  addDaysIso,
+} from "@/lib/calc/invoice";
 import { invoiceSchema } from "@/lib/validation/invoice";
 import { generateInvoicePdf } from "@/lib/pdf/invoice-pdf";
+import { generateDunningPdf } from "@/lib/pdf/dunning-pdf";
 
 export type ActionState = { error?: string; success?: boolean };
 
@@ -86,6 +91,11 @@ export async function createInvoice(
   );
   const year = Number(data.date.slice(0, 4));
 
+  // Zahlungsziel: Fälligkeit = Rechnungsdatum + N Tage.
+  const termsRaw = parseInt(String(formData.get("paymentTermsDays") ?? ""), 10);
+  const termsDays = Number.isNaN(termsRaw) || termsRaw < 0 ? 14 : termsRaw;
+  const dueDate = addDaysIso(data.date, termsDays);
+
   let createdId = "";
   let createdNumber = "";
 
@@ -100,6 +110,7 @@ export async function createInvoice(
         ownerId,
         number,
         date: data.date,
+        dueDate,
         customerId: data.customerId,
         status: "draft",
         total,
@@ -170,6 +181,7 @@ export async function createInvoice(
         number: createdNumber,
         date: data.date,
         total,
+        dueDate,
       },
       items: itemsForPdf.map((it) => ({
         description: it.description,
@@ -317,5 +329,123 @@ export async function setInvoiceStatus(
   revalidatePath("/invoices");
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
+  return { success: true };
+}
+
+/**
+ * Mahnung versenden: setzt dunning_level und dunning_date, generiert ein
+ * Mahnungs-PDF und archiviert es im Storage unter mahnungen/.
+ */
+export async function sendDunning(
+  invoiceId: string,
+  level: 1 | 2,
+): Promise<ActionState> {
+  let ownerId: string;
+  try {
+    ownerId = await requireUserId();
+  } catch {
+    return { error: "Sitzung abgelaufen. Bitte neu anmelden." };
+  }
+
+  if (level !== 1 && level !== 2) {
+    return { error: "Ungültige Mahnstufe." };
+  }
+
+  const found = await db
+    .select()
+    .from(invoices)
+    .where(and(eq(invoices.id, invoiceId), eq(invoices.ownerId, ownerId)))
+    .limit(1);
+  const invoice = found[0];
+  if (!invoice) return { error: "Rechnung nicht gefunden." };
+
+  if (invoice.status === "paid" || invoice.status === "cancelled") {
+    return { error: "Mahnung nur für offene Rechnungen möglich." };
+  }
+  if ((invoice.dunningLevel ?? 0) >= level) {
+    return { error: "Diese Mahnstufe wurde bereits versendet." };
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Mahn-PDF generieren und archivieren (Fehler blockieren nicht den Status).
+  try {
+    const [customerRows, profileRows] = await Promise.all([
+      invoice.customerId
+        ? db
+            .select()
+            .from(customers)
+            .where(eq(customers.id, invoice.customerId))
+            .limit(1)
+        : Promise.resolve([]),
+      db.select().from(companyProfile).limit(1),
+    ]);
+    const customer = customerRows[0];
+    const profile = profileRows[0];
+
+    let logo: Uint8Array | null = null;
+    try {
+      const buf = await fs.readFile(
+        path.join(process.cwd(), "public", "logo.png"),
+      );
+      logo = new Uint8Array(buf);
+    } catch {
+      /* Logo optional */
+    }
+
+    const dueIso = invoice.dueDate ?? invoice.date;
+    const dayMs = 1000 * 60 * 60 * 24;
+    const daysOverdue = Math.max(
+      0,
+      Math.floor(
+        (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${dueIso}T00:00:00Z`)) /
+          dayMs,
+      ),
+    );
+    const payUntil = addDaysIso(today, 7);
+
+    const pdfBytes = await generateDunningPdf({
+      level,
+      profile: {
+        name: profile?.name ?? "EDGECO",
+        address: profile?.address ?? null,
+        steuernummer: profile?.steuernummer ?? null,
+        iban: profile?.iban ?? null,
+      },
+      customer: {
+        name: customer?.name ?? "—",
+        address: customer?.address ?? null,
+      },
+      invoice: {
+        number: invoice.number,
+        date: invoice.date,
+        total: invoice.total,
+        dueDate: invoice.dueDate ?? null,
+      },
+      daysOverdue,
+      payUntil,
+      today,
+      logo,
+    });
+
+    const storagePath = `mahnungen/MAHNUNG-${level}-${invoice.number}.pdf`;
+    const supabase = await createClient();
+    await supabase.storage
+      .from("belege")
+      .upload(storagePath, Buffer.from(pdfBytes), {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+  } catch {
+    // PDF-Archivierung fehlgeschlagen — Mahnstufe wird trotzdem gesetzt.
+  }
+
+  await db
+    .update(invoices)
+    .set({ dunningLevel: level, dunningDate: today })
+    .where(and(eq(invoices.id, invoiceId), eq(invoices.ownerId, ownerId)));
+
+  revalidatePath("/invoices");
+  revalidatePath("/offene-posten");
   return { success: true };
 }

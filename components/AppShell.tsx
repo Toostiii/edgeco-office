@@ -7,14 +7,23 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type NavItem = { label: string; href: string; icon: string; ready?: boolean };
+type NavEntry = NavItem | { section: string };
 
-const NAV: NavItem[] = [
+const NAV: NavEntry[] = [
   { label: "Dashboard", href: "/dashboard", icon: "📊", ready: true },
   { label: "Einnahmen / Ausgaben", href: "/transactions", icon: "💶", ready: true },
   { label: "Belege", href: "/receipts", icon: "📎", ready: true },
   { label: "Rechnungen", href: "/invoices", icon: "🧾", ready: true },
+  { label: "Angebote", href: "/angebote", icon: "📝", ready: true },
+  { label: "Offene Posten", href: "/offene-posten", icon: "⏳", ready: true },
   { label: "Kunden", href: "/customers", icon: "👥", ready: true },
   { label: "Kategorien", href: "/categories", icon: "🏷️", ready: true },
+  { section: "Buchhaltung" },
+  { label: "Bankkonto-Import", href: "/bankkonto", icon: "🏦", ready: true },
+  { label: "Wiederkehrende Buchungen", href: "/wiederkehrend", icon: "🔁", ready: true },
+  { label: "Reisekosten", href: "/reisekosten", icon: "🚗", ready: true },
+  { label: "Zeiterfassung", href: "/zeiterfassung", icon: "⏱️", ready: true },
+  { section: "Sonstiges" },
   { label: "Shopify-Import", href: "/shopify", icon: "🛒", ready: true },
   { label: "Anlagen (AfA)", href: "/assets", icon: "🏭", ready: true },
   { label: "Auswertungen / EÜR", href: "/reports", icon: "📈", ready: true },
@@ -30,7 +39,17 @@ function NavLinks({
 }) {
   return (
     <nav className="flex flex-1 flex-col gap-1">
-      {NAV.map((item) => {
+      {NAV.map((item, idx) => {
+        if ("section" in item) {
+          return (
+            <p
+              key={`section-${idx}`}
+              className="mt-3 mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted/70 first:mt-0"
+            >
+              {item.section}
+            </p>
+          );
+        }
         const active = pathname === item.href;
         const base =
           "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createInvoice, type ActionState } from "@/app/(app)/invoices/actions";
 import { formatEuro, parseEuroToCents } from "@/lib/money";
 
@@ -21,10 +22,25 @@ function safeCents(v: string): number {
 
 export default function InvoiceForm({
   customers,
+  defaultPaymentTermsDays = 14,
 }: {
   customers: CustomerOption[];
+  defaultPaymentTermsDays?: number;
 }) {
-  const [lines, setLines] = useState<Line[]>([{ ...emptyLine }]);
+  const searchParams = useSearchParams();
+  const [lines, setLines] = useState<Line[]>(() => {
+    // Vorausfüllung aus der Zeiterfassung (?fromTime=1&description=…&amount=…).
+    if (searchParams.get("fromTime")) {
+      return [
+        {
+          description: searchParams.get("description") ?? "",
+          quantity: "1",
+          unitPrice: searchParams.get("amount") ?? "",
+        },
+      ];
+    }
+    return [{ ...emptyLine }];
+  });
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     createInvoice,
     {},
@@ -80,6 +96,20 @@ export default function InvoiceForm({
             required
             defaultValue={today}
             className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-brand"
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium">
+            Zahlungsziel (Tage)
+          </span>
+          <input
+            name="paymentTermsDays"
+            type="number"
+            min={0}
+            defaultValue={defaultPaymentTermsDays}
+            className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-brand"
+            title="Fälligkeit = Rechnungsdatum + N Tage"
           />
         </label>
       </div>

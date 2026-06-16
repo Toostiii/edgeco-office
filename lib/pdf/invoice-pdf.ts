@@ -22,7 +22,12 @@ export interface InvoicePdfData {
     kleinunternehmerHinweis: string | null;
   };
   customer: { name: string; address: string | null };
-  invoice: { number: string; date: string; total: number };
+  invoice: {
+    number: string;
+    date: string;
+    total: number;
+    dueDate?: string | null;
+  };
   items: { description: string; quantity: number; unitPrice: number }[];
   logo: Uint8Array | null;
 }
@@ -220,6 +225,12 @@ export async function generateInvoicePdf(
   right("Gesamtbetrag", colUnit + 40, ty, 11, bold);
   right(euro(data.invoice.total), colSum, ty, 13, bold, BRAND);
 
+  // Zahlungsziel (Fälligkeitsdatum)
+  if (data.invoice.dueDate) {
+    ty -= 18;
+    right(`Zahlbar bis: ${formatDate(data.invoice.dueDate)}`, colSum, ty, 10, font, BLACK);
+  }
+
   // §19-Hinweis
   ty -= 30;
   const hint =
@@ -241,6 +252,7 @@ export async function generateInvoicePdf(
     steuernummer: data.profile.steuernummer,
     buyerName: data.customer.name,
     totalCents: data.invoice.total,
+    dueDate: data.invoice.dueDate ?? null,
   });
   await pdf.attach(new TextEncoder().encode(zugferdXml), "factur-x.xml", {
     mimeType: "text/xml; charset=utf-8",

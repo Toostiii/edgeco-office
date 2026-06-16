@@ -35,6 +35,10 @@ export async function updateCompanyProfile(
     String(formData.get("nextInvoiceNo") ?? "1"),
     10,
   );
+  const paymentTermsDays = parseInt(
+    String(formData.get("paymentTermsDays") ?? "14"),
+    10,
+  );
 
   const values = {
     name,
@@ -46,6 +50,10 @@ export async function updateCompanyProfile(
       "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmer).",
     nextInvoiceNo:
       Number.isNaN(nextInvoiceNo) || nextInvoiceNo < 1 ? 1 : nextInvoiceNo,
+    paymentTermsDays:
+      Number.isNaN(paymentTermsDays) || paymentTermsDays < 0
+        ? 14
+        : paymentTermsDays,
   };
 
   // Es gibt genau ein Firmenprofil — vorhandenes aktualisieren oder anlegen.
