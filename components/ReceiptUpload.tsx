@@ -15,7 +15,8 @@ async function sha256Hex(file: File): Promise<string> {
 
 export default function ReceiptUpload() {
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +60,8 @@ export default function ReceiptUpload() {
 
       setOk(true);
       setNote("");
-      if (inputRef.current) inputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = "";
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unbekannter Fehler.");
@@ -85,10 +87,31 @@ export default function ReceiptUpload() {
       </label>
 
       <input
-        ref={inputRef}
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        disabled={busy}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFile(f);
+        }}
+        className="hidden"
+        id="receipt-camera"
+      />
+      <label
+        htmlFor="receipt-camera"
+        className={`brand-gradient flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg py-3 font-semibold text-white transition hover:opacity-90 ${
+          busy ? "pointer-events-none opacity-50" : ""
+        }`}
+      >
+        {busy ? "Lädt hoch …" : "📷 Foto aufnehmen"}
+      </label>
+
+      <input
+        ref={fileInputRef}
         type="file"
         accept="image/*,application/pdf"
-        capture="environment"
         disabled={busy}
         onChange={(e) => {
           const f = e.target.files?.[0];
@@ -99,15 +122,16 @@ export default function ReceiptUpload() {
       />
       <label
         htmlFor="receipt-file"
-        className={`brand-gradient flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg py-3 font-semibold text-white transition hover:opacity-90 ${
+        className={`mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-border py-3 font-semibold transition hover:bg-black/5 ${
           busy ? "pointer-events-none opacity-50" : ""
         }`}
       >
-        {busy ? "Lädt hoch …" : "📷 Beleg fotografieren / hochladen"}
+        {busy ? "Lädt hoch …" : "📁 Datei auswählen"}
       </label>
 
       <p className="mt-2 text-xs text-muted">
-        Auf dem Handy öffnet sich die Kamera. Bild oder PDF möglich.
+        Foto aufnehmen öffnet die Kamera, Datei auswählen die Galerie/
+        Dateiverwaltung (auch PDF möglich).
       </p>
 
       {error && <p className="mt-3 text-sm text-expense">{error}</p>}
