@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { categories, transactions } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { isYearLocked, yearOf } from "@/lib/fiscal";
 import {
   extractShopifyMarker,
   isImportableShopifyStatus,
@@ -96,18 +97,25 @@ export async function previewShopifyImport(
   }
 
   const existing = await existingShopifyIds(ownerId);
+  const lockedYears = new Set<number>();
+  for (const year of new Set(parsed.orders.map((order) => yearOf(order.date)))) {
+    if (await isYearLocked(ownerId, year)) lockedYears.add(year);
+  }
   const orders = parsed.orders.map((order): ShopifyPreviewOrder => {
     const duplicate = existing.has(order.externalId);
     const statusOk = isImportableShopifyStatus(order.financialStatus);
+    const yearLocked = lockedYears.has(yearOf(order.date));
     const skipReason = duplicate
       ? "Bereits importiert"
-      : statusOk
-        ? null
-        : `Status: ${order.financialStatus ?? "unbekannt"}`;
+      : yearLocked
+        ? `Jahr ${yearOf(order.date)} ist festgeschrieben`
+        : statusOk
+          ? null
+          : `Status: ${order.financialStatus ?? "unbekannt"}`;
     return {
       ...order,
       duplicate,
-      importable: !duplicate && statusOk,
+      importable: !duplicate && statusOk && !yearLocked,
       skipReason,
     };
   });
@@ -150,12 +158,26 @@ export async function importShopifyOrders(
 
   const existing = await existingShopifyIds(ownerId);
   const categoryId = await shopifyCategoryId(ownerId);
-  const ready = parsed.data.filter((order) => {
-    return (
-      !existing.has(order.externalId) &&
-      isImportableShopifyStatus(order.financialStatus)
-    );
-  });
+  const lockedYears = new Map<number, boolean>();
+  async function yearLocked(date: string): Promise<boolean> {
+    const year = yearOf(date);
+    if (!lockedYears.has(year)) {
+      lockedYears.set(year, await isYearLocked(ownerId, year));
+    }
+    return lockedYears.get(year)!;
+  }
+
+  const ready: typeof parsed.data = [];
+  for (const order of parsed.data) {
+    if (
+      existing.has(order.externalId) ||
+      !isImportableShopifyStatus(order.financialStatus) ||
+      (await yearLocked(order.date))
+    ) {
+      continue;
+    }
+    ready.push(order);
+  }
 
   if (ready.length > 0) {
     await db.insert(transactions).values(
