@@ -258,9 +258,22 @@ export async function deleteTransaction(id: string): Promise<ActionState> {
     return { error: "Jahr ist festgeschrieben — Löschen gesperrt." };
   }
 
-  await db
-    .delete(transactions)
-    .where(and(eq(transactions.id, id), eq(transactions.ownerId, ownerId)));
+  try {
+    const deleted = await db
+      .delete(transactions)
+      .where(and(eq(transactions.id, id), eq(transactions.ownerId, ownerId)))
+      .returning({ id: transactions.id });
+    if (deleted.length === 0) {
+      return { error: "Buchung nicht gefunden oder keine Berechtigung." };
+    }
+  } catch (err) {
+    return {
+      error:
+        err instanceof Error
+          ? `Löschen fehlgeschlagen: ${err.message}`
+          : "Löschen fehlgeschlagen.",
+    };
+  }
 
   revalidatePath("/transactions");
   revalidatePath("/dashboard");

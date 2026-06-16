@@ -36,24 +36,37 @@ export async function deleteReceipt(
 
   if (!found[0]) return { error: "Beleg nicht gefunden." };
 
-  // Verknüpfte Buchungen lösen (Buchung bleibt erhalten, nur ohne Beleg).
-  await db
-    .update(transactions)
-    .set({ receiptId: null })
-    .where(
-      and(
-        eq(transactions.receiptId, id),
-        eq(transactions.ownerId, user.id),
-      ),
-    );
+  try {
+    // Verknüpfte Buchungen lösen (Buchung bleibt erhalten, nur ohne Beleg).
+    await db
+      .update(transactions)
+      .set({ receiptId: null })
+      .where(
+        and(
+          eq(transactions.receiptId, id),
+          eq(transactions.ownerId, user.id),
+        ),
+      );
 
-  // Datei aus dem Storage entfernen.
-  await supabase.storage.from("belege").remove([found[0].filePath]);
+    // Datei aus dem Storage entfernen.
+    await supabase.storage.from("belege").remove([found[0].filePath]);
 
-  // DB-Eintrag löschen.
-  await db
-    .delete(receipts)
-    .where(and(eq(receipts.id, id), eq(receipts.ownerId, user.id)));
+    // DB-Eintrag löschen.
+    const deleted = await db
+      .delete(receipts)
+      .where(and(eq(receipts.id, id), eq(receipts.ownerId, user.id)))
+      .returning({ id: receipts.id });
+    if (deleted.length === 0) {
+      return { error: "Beleg nicht gefunden oder keine Berechtigung." };
+    }
+  } catch (err) {
+    return {
+      error:
+        err instanceof Error
+          ? `Löschen fehlgeschlagen: ${err.message}`
+          : "Löschen fehlgeschlagen.",
+    };
+  }
 
   revalidatePath("/receipts");
   revalidatePath("/transactions");

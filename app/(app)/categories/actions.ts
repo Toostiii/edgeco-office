@@ -120,9 +120,13 @@ export async function deleteCategory(id: string): Promise<ActionState> {
   }
 
   try {
-    await db
+    const deleted = await db
       .delete(categories)
-      .where(and(eq(categories.id, id), ownedBy(ownerId)));
+      .where(and(eq(categories.id, id), ownedBy(ownerId)))
+      .returning({ id: categories.id });
+    if (deleted.length === 0) {
+      return { error: "Kategorie nicht gefunden oder keine Berechtigung." };
+    }
   } catch {
     return {
       error:

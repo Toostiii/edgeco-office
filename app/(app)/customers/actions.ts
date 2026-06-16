@@ -101,9 +101,13 @@ export async function deleteCustomer(id: string): Promise<ActionState> {
   }
 
   try {
-    await db
+    const deleted = await db
       .delete(customers)
-      .where(and(eq(customers.id, id), eq(customers.ownerId, ownerId)));
+      .where(and(eq(customers.id, id), eq(customers.ownerId, ownerId)))
+      .returning({ id: customers.id });
+    if (deleted.length === 0) {
+      return { error: "Kunde nicht gefunden oder keine Berechtigung." };
+    }
   } catch {
     return {
       error: "Kunde kann nicht gelöscht werden (hat verknüpfte Rechnungen).",

@@ -99,9 +99,22 @@ export async function deleteTimeEntry(id: string): Promise<ActionState> {
     return { error: "Abgerechnete Einträge können nicht gelöscht werden." };
   }
 
-  await db
-    .delete(timeEntries)
-    .where(and(eq(timeEntries.id, id), eq(timeEntries.ownerId, ownerId)));
+  try {
+    const deleted = await db
+      .delete(timeEntries)
+      .where(and(eq(timeEntries.id, id), eq(timeEntries.ownerId, ownerId)))
+      .returning({ id: timeEntries.id });
+    if (deleted.length === 0) {
+      return { error: "Eintrag nicht gefunden oder keine Berechtigung." };
+    }
+  } catch (err) {
+    return {
+      error:
+        err instanceof Error
+          ? `Löschen fehlgeschlagen: ${err.message}`
+          : "Löschen fehlgeschlagen.",
+    };
+  }
 
   revalidatePath("/zeiterfassung");
   return { success: true };

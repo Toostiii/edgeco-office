@@ -91,14 +91,27 @@ export async function deleteRecurring(id: string): Promise<ActionState> {
     return { error: "Sitzung abgelaufen. Bitte neu anmelden." };
   }
 
-  await db
-    .delete(recurringTransactions)
-    .where(
-      and(
-        eq(recurringTransactions.id, id),
-        eq(recurringTransactions.ownerId, ownerId),
-      ),
-    );
+  try {
+    const deleted = await db
+      .delete(recurringTransactions)
+      .where(
+        and(
+          eq(recurringTransactions.id, id),
+          eq(recurringTransactions.ownerId, ownerId),
+        ),
+      )
+      .returning({ id: recurringTransactions.id });
+    if (deleted.length === 0) {
+      return { error: "Vorlage nicht gefunden oder keine Berechtigung." };
+    }
+  } catch (err) {
+    return {
+      error:
+        err instanceof Error
+          ? `Löschen fehlgeschlagen: ${err.message}`
+          : "Löschen fehlgeschlagen.",
+    };
+  }
 
   revalidatePath("/wiederkehrend");
   return { success: true };

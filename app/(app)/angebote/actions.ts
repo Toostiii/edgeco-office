@@ -233,10 +233,23 @@ export async function deleteQuote(id: string): Promise<ActionState> {
     }
   }
 
-  // Items per FK-Cascade.
-  await db
-    .delete(quotes)
-    .where(and(eq(quotes.id, id), eq(quotes.ownerId, ownerId)));
+  try {
+    // Items per FK-Cascade.
+    const deleted = await db
+      .delete(quotes)
+      .where(and(eq(quotes.id, id), eq(quotes.ownerId, ownerId)))
+      .returning({ id: quotes.id });
+    if (deleted.length === 0) {
+      return { error: "Angebot nicht gefunden oder keine Berechtigung." };
+    }
+  } catch (err) {
+    return {
+      error:
+        err instanceof Error
+          ? `Löschen fehlgeschlagen: ${err.message}`
+          : "Löschen fehlgeschlagen.",
+    };
+  }
 
   revalidatePath("/angebote");
   return { success: true };

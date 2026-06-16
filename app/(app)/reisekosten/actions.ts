@@ -119,9 +119,22 @@ export async function deleteTravelExpense(id: string): Promise<ActionState> {
     return { error: "Sitzung abgelaufen. Bitte neu anmelden." };
   }
 
-  await db
-    .delete(travelExpenses)
-    .where(and(eq(travelExpenses.id, id), eq(travelExpenses.ownerId, ownerId)));
+  try {
+    const deleted = await db
+      .delete(travelExpenses)
+      .where(and(eq(travelExpenses.id, id), eq(travelExpenses.ownerId, ownerId)))
+      .returning({ id: travelExpenses.id });
+    if (deleted.length === 0) {
+      return { error: "Eintrag nicht gefunden oder keine Berechtigung." };
+    }
+  } catch (err) {
+    return {
+      error:
+        err instanceof Error
+          ? `Löschen fehlgeschlagen: ${err.message}`
+          : "Löschen fehlgeschlagen.",
+    };
+  }
 
   revalidatePath("/reisekosten");
   return { success: true };
